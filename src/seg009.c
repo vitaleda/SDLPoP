@@ -25,11 +25,29 @@ The authors of this program may be contacted at http://forum.princed.org
 #include <sys/stat.h>
 #include <errno.h>
 
+#ifdef VITA
+#define VITA_BTN_TRIANGLE 0
+#define VITA_BTN_CIRCLE 1
+#define VITA_BTN_CROSS 2
+#define VITA_BTN_SQUARE 3
+#define VITA_BTN_LTRIGGER 4
+#define VITA_BTN_RTRIGGER 5
+#define VITA_BTN_DOWN 6
+#define VITA_BTN_LEFT 7
+#define VITA_BTN_UP 8
+#define VITA_BTN_RIGHT 9
+#define VITA_BTN_SELECT 10
+#define VITA_BTN_START 11
+#endif
+
 // Most functions in this file are different from those in the original game.
 
 void sdlperror(const char* header) {
 	const char* error = SDL_GetError();
 	printf("%s: %s\n",header,error);
+#ifdef VITA
+	vitaDebug("%s: %s\n", header, error);
+#endif
 	//quit(1);
 }
 
@@ -149,7 +167,9 @@ int __pascal far pop_wait(int timer_index,int time) {
 dat_type *__pascal open_dat(const char *filename,int drive) {
 	FILE* fp = NULL;
 	if (!use_custom_levelset) {
-		fp = fopen(filename, "rb");
+		char full_filename[POP_MAX_PATH];
+		snprintf(full_filename, sizeof(full_filename), "ux0:data/prince/%s", filename);
+		fp = fopen(full_filename, "rb");
 	}
 	else {
 		char filename_mod[POP_MAX_PATH];
@@ -1469,7 +1489,7 @@ size_t digi_remaining_length = 0;
 // The properties of the audio device.
 SDL_AudioSpec* digi_audiospec = NULL;
 // The desired samplerate. Everything will be resampled to this.
-const int digi_samplerate = 44100;
+const int digi_samplerate = 48000;
 
 void stop_digi() {
 #ifndef USE_MIXER
@@ -1599,7 +1619,7 @@ void init_digi() {
 	memset(desired, 0, sizeof(SDL_AudioSpec));
 	desired->freq = digi_samplerate; //buffer->digi.sample_rate;
 	desired->format = AUDIO_S16SYS;
-	desired->channels = 2;
+	desired->channels = 1;
 	desired->samples = 1024;
 #ifndef USE_MIXER
 	desired->callback = digi_callback;
@@ -1629,7 +1649,7 @@ const int max_sound_id = 58;
 char** sound_names = NULL;
 
 void load_sound_names() {
-	const char* names_path = "data/music/names.txt";
+	const char* names_path = "ux0:data/prince/data/music/names.txt";
 	if (sound_names != NULL) return;
 	FILE* fp = fopen(names_path,"rt");
 	if (fp==NULL) return;
@@ -1677,7 +1697,7 @@ sound_buffer_type* load_sound(int index) {
 				const char* ext=exts[i];
 				struct stat info;
 
-				snprintf(filename, sizeof(filename), "data/music/%s.%s", sound_name(index), ext);
+				snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.%s", sound_name(index), ext);
 				// Skip nonexistent files:
 				if (stat(filename, &info))
 					continue;
@@ -1896,7 +1916,7 @@ int __pascal far check_sound_playing() {
 
 // seg009:38ED
 void __pascal far set_gr_mode(byte grmode) {
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE | SDL_INIT_JOYSTICK ) != 0) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE | SDL_INIT_JOYSTICK ) != 0) {
 		sdlperror("SDL_Init");
 		quit(1);
 	}
@@ -2051,7 +2071,7 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			}
 		} else {
 			// If it's a directory:
-			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",pointer->filename, resource_id, extension);
+			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s",pointer->filename, resource_id, extension);
 			if (!use_custom_levelset) {
 				//printf("loading (binary) %s",image_filename);
 				fp = fopen(image_filename, "rb");
@@ -2059,7 +2079,7 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			else {
 				char image_filename_mod[POP_MAX_PATH];
 				// before checking data/, first try mods/MODNAME/data/
-				snprintf(image_filename_mod, sizeof(image_filename_mod), "mods/%s/%s", levelset_name, image_filename);
+				snprintf(image_filename_mod, sizeof(image_filename_mod), "ux0:/data/prince/mods/%s/%s", levelset_name, image_filename);
 				//printf("loading (binary) %s",image_filename_mod);
 				fp = fopen(image_filename_mod, "rb");
 				if (fp == NULL) {
@@ -2547,6 +2567,7 @@ void idle() {
 				key_states[event.key.keysym.scancode] = 0;
 				break;
 
+#ifndef VITA
 			case SDL_JOYAXISMOTION:
 				if (event.jaxis.axis == 0) {
 
@@ -2585,9 +2606,18 @@ void idle() {
 					default: gamepad_states[0] = 0; gamepad_states[1] = 0;  break;
 				}
 				break;
+#endif
 			case SDL_JOYBUTTONDOWN:
 				switch (event.jbutton.button)
 				{
+#ifdef VITA
+					case VITA_BTN_LEFT: gamepad_states[0] = -1; break;
+					case VITA_BTN_RIGHT: gamepad_states[0] = 1; break;
+					case VITA_BTN_UP: gamepad_states[1] = -1; break;
+					case VITA_BTN_DOWN: gamepad_states[1] = 1; break;
+					case VITA_BTN_CROSS: gamepad_states[2] = 1; break;
+					case VITA_BTN_TRIANGLE: is_show_time = 1; break;
+#else
 					case 0: gamepad_states[1] = 1; break; /*** A (down) ***/
 					case 1: break; /*** B ***/
 					case 2: gamepad_states[2] = 1; break; /*** X (shift) ***/
@@ -2599,11 +2629,19 @@ void idle() {
 					case 8: break; /*** guide ***/
 					case 9: break; /*** left joystick ***/
 					case 10: break; /*** right joystick ***/
+#endif
 				}
 				break;
 			case SDL_JOYBUTTONUP:
 				switch (event.jbutton.button)
 				{
+#ifdef VITA
+					case VITA_BTN_LEFT: gamepad_states[0] = 0;
+					case VITA_BTN_RIGHT: gamepad_states[0] = 0;
+					case VITA_BTN_UP: gamepad_states[1] = 0;
+					case VITA_BTN_DOWN: gamepad_states[1] = 0;
+					case VITA_BTN_CROSS: gamepad_states[2] = 0;
+#else
 					case 0: gamepad_states[1] = 0; break; /*** A (down) ***/
 					case 1: break; /*** B ***/
 					case 2: gamepad_states[2] = 0; break; /*** X (shift) ***/
@@ -2615,6 +2653,7 @@ void idle() {
 					case 8: break; /*** guide ***/
 					case 9: break; /*** left joystick ***/
 					case 10: break; /*** right joystick ***/
+#endif
 				}
 				break;
 			case SDL_TEXTINPUT:

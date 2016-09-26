@@ -21,6 +21,12 @@ The authors of this program may be contacted at http://forum.princed.org
 #ifndef COMMON_H
 #define COMMON_H
 
+#ifdef VITA
+#include <debugnet.h>
+#define vitaDebug(...) debugNetPrintf(DEBUG, __VA_ARGS__, ret)
+int ret;
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
