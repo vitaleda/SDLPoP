@@ -27,16 +27,20 @@ The authors of this program may be contacted at http://forum.princed.org
 
 int main(int argc, char *argv[])
 {
-#ifdef VITA
+#ifdef VITA_DEBUG
 	int ret = debugNetInit("192.168.1.30", 18194, DEBUG);
+#endif
+#ifdef VITA
 	sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 	scePowerSetArmClockFrequency(444);
 #endif
 	g_argc = argc;
 	g_argv = argv;
 	pop_main();
-#ifdef VITA
+#ifdef VITA_DEBUG
 	debugNetFinish();
+#endif
+#ifdef VITA
 	sceKernelExitProcess(0);
 #endif
 	return 0;

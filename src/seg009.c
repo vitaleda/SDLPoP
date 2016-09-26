@@ -45,7 +45,7 @@ The authors of this program may be contacted at http://forum.princed.org
 void sdlperror(const char* header) {
 	const char* error = SDL_GetError();
 	printf("%s: %s\n",header,error);
-#ifdef VITA
+#ifdef VITA_DEBUG
 	vitaDebug("%s: %s\n", header, error);
 #endif
 	//quit(1);

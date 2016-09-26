@@ -4,7 +4,7 @@ SOURCES  := src
 DATA     := data
 INCLUDES := include
 
-LIBS = -ldebugnet -lSDL2_image -lSDL2_mixer -lSDL2 -lvorbisfile -logg -lvorbis -lmodplug \
+LIBS = -lSDL2_image -lSDL2_mixer -lSDL2 -lvorbisfile -logg -lvorbis -lmodplug \
 	-lvita2d -lSceCommonDialog_stub -lSceAudio_stub -lSceKernel_stub \
 	-lSceNet_stub -lSceNetCtl_stub -lpng -lz -lSceDisplay_stub -lSceGxm_stub \
 	-lSceSysmodule_stub -lSceCtrl_stub -lSceTouch_stub -lm -lc \
