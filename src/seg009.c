@@ -167,9 +167,13 @@ int __pascal far pop_wait(int timer_index,int time) {
 dat_type *__pascal open_dat(const char *filename,int drive) {
 	FILE* fp = NULL;
 	if (!use_custom_levelset) {
+#ifdef VITA
 		char full_filename[POP_MAX_PATH];
 		snprintf(full_filename, sizeof(full_filename), "ux0:data/prince/%s", filename);
 		fp = fopen(full_filename, "rb");
+#else
+		fp = fopen(filename, "rb");
+#endif
 	}
 	else {
 		char filename_mod[POP_MAX_PATH];
@@ -1649,7 +1653,11 @@ const int max_sound_id = 58;
 char** sound_names = NULL;
 
 void load_sound_names() {
+#ifdef VITA
 	const char* names_path = "ux0:data/prince/data/music/names.txt";
+#else
+	const char* names_path = "data/music/names.txt";
+#endif
 	if (sound_names != NULL) return;
 	FILE* fp = fopen(names_path,"rt");
 	if (fp==NULL) return;
@@ -1697,7 +1705,11 @@ sound_buffer_type* load_sound(int index) {
 				const char* ext=exts[i];
 				struct stat info;
 
+#ifdef VITA
 				snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.%s", sound_name(index), ext);
+#else
+				snprintf(filename, sizeof(filename), "data/music/%s.%s", sound_name(index), ext);
+#endif
 				// Skip nonexistent files:
 				if (stat(filename, &info))
 					continue;
@@ -2071,7 +2083,11 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			}
 		} else {
 			// If it's a directory:
+#ifdef VITA
 			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s",pointer->filename, resource_id, extension);
+#else
+			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",pointer->filename, resource_id, extension);
+#endif
 			if (!use_custom_levelset) {
 				//printf("loading (binary) %s",image_filename);
 				fp = fopen(image_filename, "rb");
@@ -2079,7 +2095,11 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			else {
 				char image_filename_mod[POP_MAX_PATH];
 				// before checking data/, first try mods/MODNAME/data/
+#ifdef VITA
 				snprintf(image_filename_mod, sizeof(image_filename_mod), "ux0:/data/prince/mods/%s/%s", levelset_name, image_filename);
+#else
+				snprintf(image_filename_mod, sizeof(image_filename_mod), "mods/%s/%s", levelset_name, image_filename);
+#endif
 				//printf("loading (binary) %s",image_filename_mod);
 				fp = fopen(image_filename_mod, "rb");
 				if (fp == NULL) {

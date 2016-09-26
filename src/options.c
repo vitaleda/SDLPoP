@@ -347,7 +347,11 @@ static int mod_ini_callback(const char *section, const char *name, const char *v
 
 void load_options() {
     use_default_options();
+#ifdef VITA
     ini_load("ux0:data/prince/SDLPoP.ini", global_ini_callback); // global configuration
+#else
+	ini_load("SDLPoP.ini", global_ini_callback); // global configuration
+#endif
 
     // The 'mod' command line argument can override the levelset choice in SDLPoP.ini
     // usage: prince mod "Mod Name"
