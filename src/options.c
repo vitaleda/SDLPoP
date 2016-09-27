@@ -365,7 +365,11 @@ void load_options() {
     // load mod-specific INI configuration
     if (use_custom_levelset) {
         char filename[POP_MAX_PATH];
+#ifdef VITA
         snprintf(filename, sizeof(filename), "ux0:data/prince/mods/%s/%s", levelset_name, "mod.ini");
+#else
+		snprintf(filename, sizeof(filename), "mods/%s/%s", levelset_name, "mod.ini");
+#endif
         ini_load(filename, mod_ini_callback);
     }
 
