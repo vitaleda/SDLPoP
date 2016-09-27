@@ -1520,6 +1520,7 @@ void stop_digi() {
 	SDL_UnlockAudio();
 #else
 	Mix_HaltChannel(-1);
+	Mix_HaltMusic();
 	digi_playing = 0;
 #endif
 }
@@ -1610,6 +1611,9 @@ void channel_finished(int channel) {
 	event.user.code = userevent_SOUND;
 	SDL_PushEvent(&event);
 }
+void music_finished() {
+	channel_finished(-1);
+}
 #endif
 
 int digi_unavailable = 0;
@@ -1643,6 +1647,7 @@ void init_digi() {
 	}
 	Mix_AllocateChannels(1);
 	Mix_ChannelFinished(channel_finished);
+	Mix_HookMusicFinished(music_finished);
 #endif
 	digi_audiospec = desired;
 }
@@ -1714,16 +1719,16 @@ sound_buffer_type* load_sound(int index) {
 				if (stat(filename, &info))
 					continue;
 				//printf("Trying to load %s\n", filename);
-				Mix_Chunk* chunk = Mix_LoadWAV(filename);
-				if (chunk == NULL) {
+				Mix_Music* music = Mix_LoadMUS(filename);
+				if (music == NULL) {
 					sdlperror(filename);
 					//sdlperror("Mix_LoadWAV");
 					continue;
 				}
 				//printf("Loaded sound from %s\n", filename);
 				result = malloc(sizeof(sound_buffer_type));
-				result->type = sound_chunk;
-				result->chunk = chunk;
+				result->type = sound_music;
+				result->music = music;
 				break;
 			}
 		} else {
@@ -1753,6 +1758,16 @@ void __pascal far play_chunk_sound(sound_buffer_type far *buffer) {
 	//printf("playing chunk sound %p\n", buffer);
 	if (Mix_PlayChannel(sound_channel, buffer->chunk, 0) == -1) {
 		sdlperror("Mix_PlayChannel");
+	}
+	digi_playing = 1;
+}
+
+void __pascal far play_music_sound(sound_buffer_type far *buffer) {
+	init_digi();
+	if (digi_unavailable) return;
+	stop_sounds();
+	if (Mix_PlayMusic(buffer->music, 0) == -1) {
+		sdlperror("Mix_PlayMusic");
 	}
 	digi_playing = 1;
 }
@@ -1878,6 +1893,9 @@ void free_sound(sound_buffer_type far *buffer) {
 	if (buffer->type == sound_chunk) {
 		Mix_FreeChunk(buffer->chunk);
 	}
+	if (buffer->type == sound_music) {
+		Mix_FreeMusic(buffer->music);
+	}
 #endif
 	free(buffer);
 }
@@ -1890,7 +1908,7 @@ void __pascal far play_sound_from_buffer(sound_buffer_type far *buffer) {
 		//quit(1);
 		return;
 	}
-	switch (buffer->type & 3) {
+	switch (buffer->type & 7) {
 		case sound_speaker:
 			play_speaker_sound(buffer);
 		break;
@@ -1900,6 +1918,9 @@ void __pascal far play_sound_from_buffer(sound_buffer_type far *buffer) {
 #ifdef USE_MIXER
 		case sound_chunk:
 			play_chunk_sound(buffer);
+		break;
+		case sound_music:
+			play_music_sound(buffer);
 		break;
 #endif
 		default:
