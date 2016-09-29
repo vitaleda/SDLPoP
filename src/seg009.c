@@ -1973,7 +1973,9 @@ void __pascal far set_gr_mode(byte grmode) {
 	if (options.use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320*5, 200*6);
 	} else {
+#ifndef VITA
 		SDL_RenderSetLogicalSize(renderer_, 320, 200);
+#endif
 	}
 
     /* Migration to SDL2: everything is still blitted to onscreen_surface_, however:
