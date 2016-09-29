@@ -2656,7 +2656,7 @@ void idle() {
 #ifdef VITA
 					case VITA_BTN_LEFT: gamepad_states[0] = -1; break;
 					case VITA_BTN_RIGHT: gamepad_states[0] = 1; break;
-					case VITA_BTN_UP: gamepad_states[1] = -1; break;
+					case VITA_BTN_UP: case VITA_BTN_CIRCLE: gamepad_states[1] = -1; break;
 					case VITA_BTN_DOWN: gamepad_states[1] = 1; break;
 					case VITA_BTN_CROSS: gamepad_states[2] = 1; break;
 					case VITA_BTN_TRIANGLE: is_show_time = 1; break;
@@ -2681,7 +2681,7 @@ void idle() {
 #ifdef VITA
 					case VITA_BTN_LEFT: gamepad_states[0] = 0;
 					case VITA_BTN_RIGHT: gamepad_states[0] = 0;
-					case VITA_BTN_UP: gamepad_states[1] = 0;
+					case VITA_BTN_UP: case VITA_BTN_CIRCLE: gamepad_states[1] = 0;
 					case VITA_BTN_DOWN: gamepad_states[1] = 0;
 					case VITA_BTN_CROSS: gamepad_states[2] = 0;
 #else
