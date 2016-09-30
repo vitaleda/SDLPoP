@@ -2679,11 +2679,11 @@ void idle() {
 				switch (event.jbutton.button)
 				{
 #ifdef VITA
-					case VITA_BTN_LEFT: gamepad_states[0] = 0;
-					case VITA_BTN_RIGHT: gamepad_states[0] = 0;
-					case VITA_BTN_UP: case VITA_BTN_CIRCLE: gamepad_states[1] = 0;
-					case VITA_BTN_DOWN: gamepad_states[1] = 0;
-					case VITA_BTN_CROSS: gamepad_states[2] = 0;
+					case VITA_BTN_LEFT: gamepad_states[0] = 0; break;
+					case VITA_BTN_RIGHT: gamepad_states[0] = 0; break;
+					case VITA_BTN_UP: case VITA_BTN_CIRCLE: gamepad_states[1] = 0; break;
+					case VITA_BTN_DOWN: gamepad_states[1] = 0; break;
+					case VITA_BTN_CROSS: gamepad_states[2] = 0; break;
 #else
 					case 0: gamepad_states[1] = 0; break; /*** A (down) ***/
 					case 1: break; /*** B ***/
