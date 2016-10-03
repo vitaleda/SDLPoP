@@ -1719,7 +1719,10 @@ sound_buffer_type* load_sound(int index) {
 				if (stat(filename, &info))
 					continue;
 				//printf("Trying to load %s\n", filename);
-				Mix_Music* music = Mix_LoadMUS(filename);
+				FILE* f = fopen(filename, "rb");
+				char* mem = (char*)malloc(info.st_size);
+				fread(mem, 1, info.st_size, f);
+				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);
 				if (music == NULL) {
 					sdlperror(filename);
 					//sdlperror("Mix_LoadWAV");
