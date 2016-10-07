@@ -163,17 +163,36 @@ int __pascal far pop_wait(int timer_index,int time) {
 	return do_wait(timer_index);
 }
 
+static FILE* open_dat_from_root_or_data_dir(const char* filename) {
+	FILE* fp = NULL;
+#ifdef VITA
+	char full_filename[POP_MAX_PATH];
+	snprintf(full_filename, sizeof(full_filename), "ux0:data/prince/%s", filename);
+	fp = fopen(full_filename, "rb");
+#else
+	fp = fopen(filename, "rb");
+#endif
+
+	// if failed, try if the DAT file can be opened in the data/ directory, instead of the main folder
+	if (fp == NULL) {
+		char data_path[POP_MAX_PATH];
+		snprintf(data_path, sizeof(data_path), "data/%s", filename);
+
+		// verify that this is a regular file and not a directory (otherwise, don't open)
+		struct stat path_stat;
+		stat(data_path, &path_stat);
+		if (S_ISREG(path_stat.st_mode)) {
+			fp = fopen(data_path, "rb");
+		}
+	}
+	return fp;
+}
+
 // seg009:0F58
 dat_type *__pascal open_dat(const char *filename,int drive) {
 	FILE* fp = NULL;
 	if (!use_custom_levelset) {
-#ifdef VITA
-		char full_filename[POP_MAX_PATH];
-		snprintf(full_filename, sizeof(full_filename), "ux0:data/prince/%s", filename);
-		fp = fopen(full_filename, "rb");
-#else
-		fp = fopen(filename, "rb");
-#endif
+		fp = open_dat_from_root_or_data_dir(filename);
 	}
 	else {
 		char filename_mod[POP_MAX_PATH];
@@ -181,7 +200,7 @@ dat_type *__pascal open_dat(const char *filename,int drive) {
 		snprintf(filename_mod, sizeof(filename_mod), "mods/%s/%s", levelset_name, filename);
 		fp = fopen(filename_mod, "rb");
 		if (fp == NULL) {
-			fp = fopen(filename, "rb");
+			fp = open_dat_from_root_or_data_dir(filename);
 		}
 	}
 	dat_header_type dat_header;
@@ -1719,10 +1738,14 @@ sound_buffer_type* load_sound(int index) {
 				if (stat(filename, &info))
 					continue;
 				//printf("Trying to load %s\n", filename);
+#ifdef VITA
 				FILE* f = fopen(filename, "rb");
 				char* mem = (char*)malloc(info.st_size);
 				fread(mem, 1, info.st_size, f);
 				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);
+#else
+				Mix_Music* music = Mix_LoadMUS(filename);
+#endif
 				if (music == NULL) {
 					sdlperror(filename);
 					//sdlperror("Mix_LoadWAV");
@@ -1964,7 +1987,7 @@ void __pascal far set_gr_mode(byte grmode) {
 	flags |= SDL_WINDOW_RESIZABLE;
 
 	// Should use different default window dimensions when using 4:3 aspect ratio
-	if (options.use_correct_aspect_ratio && pop_window_width == 640 && pop_window_height == 400) {
+	if (use_correct_aspect_ratio && pop_window_width == 640 && pop_window_height == 400) {
 		pop_window_height = 480;
 	}
 	window_ = SDL_CreateWindow(WINDOW_TITLE,
@@ -1973,7 +1996,7 @@ void __pascal far set_gr_mode(byte grmode) {
 	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED );
 	
 	// Allow us to use a consistent set of screen co-ordinates, even if the screen size changes
-	if (options.use_correct_aspect_ratio) {
+	if (use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320*5, 200*6);
 	} else {
 #ifndef VITA
@@ -2109,10 +2132,17 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			}
 		} else {
 			// If it's a directory:
+			char filename_no_ext[POP_MAX_PATH];
+			// strip the .DAT file extension from the filename (use folders simply named TITLE, KID, VPALACE, etc.)
+			strncpy(filename_no_ext, pointer->filename, sizeof(filename_no_ext));
+			size_t len = strlen(filename_no_ext);
+			if (len >= 5 && filename_no_ext[len-4] == '.') {
+				filename_no_ext[len-4] = '\0'; // terminate, so ".DAT" is deleted from the filename
+			}
 #ifdef VITA
-			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s",pointer->filename, resource_id, extension);
+			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s",filename_no_ext, resource_id, extension);
 #else
-			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",pointer->filename, resource_id, extension);
+			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",filename_no_ext, resource_id, extension);
 #endif
 			if (!use_custom_levelset) {
 				//printf("loading (binary) %s",image_filename);
@@ -2818,7 +2848,7 @@ void __pascal far set_bg_attr(int vga_pal_index,int hc_pal_index) {
 	// stub
 #ifdef USE_FLASH
 	//palette[vga_pal_index] = vga_palette[hc_pal_index];
-	if (!options.enable_flash) return;
+	if (!enable_flash) return;
 	if (vga_pal_index == 0) {
 		/*
 		if (SDL_SetAlpha(offscreen_surface, SDL_SRCALPHA, 0) != 0) {

@@ -28,6 +28,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #endif
 
 #define POP_MAX_PATH 256
+#define POP_MAX_OPTIONS_SIZE 256
 
 #define WINDOW_TITLE "Prince of Persia (SDLPoP) v1.17 - pre-release"
 
@@ -63,7 +64,9 @@ The authors of this program may be contacted at http://forum.princed.org
 #define USE_QUICKLOAD_PENALTY
 
 // Enable recording/replay feature.
+#ifndef VITA
 #define USE_REPLAY
+#endif
 
 // Adds a way to crouch immediately after climbing up: press down and forward simultaneously.
 // In the original game, this could not be done (pressing down always causes the kid to climb down).

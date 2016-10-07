@@ -13,7 +13,6 @@ LIBS = -lSDL2_image -lSDL2_mixer -lSDL2 -lvorbisfile -logg -lvorbis -lmodplug \
 COMMON_OBJS = src/data.o \
 	src/main.o \
 	src/options.o \
-	src/replay.o \
 	src/seg000.o \
 	src/seg001.o \
 	src/seg002.o \
