@@ -38,6 +38,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #define VITA_BTN_RIGHT 9
 #define VITA_BTN_SELECT 10
 #define VITA_BTN_START 11
+#include <kbdvita.h>
 #endif
 
 // Most functions in this file are different from those in the original game.
@@ -1275,6 +1276,11 @@ void __pascal far draw_text_cursor(int xpos,int ypos,int color) {
 
 // seg009:053C
 int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length,const char *initial,int has_initial,int arg_4,int color,int bgcolor) {
+#ifdef VITA
+	char *str = kbdvita_get("Enter your name", max_length);
+	strncpy(buffer, (str != NULL) ? str : "No name", max_length);
+    return strlen(buffer);
+#else
 	short length;
 	word key;
 	short cursor_visible;
@@ -1351,6 +1357,7 @@ int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length
 		}
 		request_screen_update();
 	} while(1);
+#endif
 }
 
 #else // USE_TEXT
