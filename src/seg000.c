@@ -274,7 +274,11 @@ int quick_process(process_func_type process_func) {
 	return ok;
 }
 
+#ifndef VITA
 const char* quick_file = "QUICKSAVE.SAV";
+#else
+const char* quick_file = "ux0:data/prince/QUICKSAVE.SAV";
+#endif
 const char quick_version[] = "V1.16b4 ";
 char quick_control[] = "........";
 
