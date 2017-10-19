@@ -26,7 +26,11 @@ image_type* lighting_mask = NULL;
 image_type* screen_overlay = NULL;
 Uint32 bgcolor;
 
+#ifdef VITA
+const char mask_filename[] = "ux0:data/prince/data/light.png";
+#else
 const char mask_filename[] = "data/light.png";
+#endif
 const Uint8 ambient_level = 128;
 
 // Called once at startup.

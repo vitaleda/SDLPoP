@@ -67,7 +67,9 @@ The authors of this program may be contacted at http://forum.princed.org
 #define USE_QUICKLOAD_PENALTY
 
 // Enable recording/replay feature.
+#ifndef VITA
 #define USE_REPLAY
+#endif
 
 // Adds a way to crouch immediately after climbing up: press down and forward simultaneously.
 // In the original game, this could not be done (pressing down always causes the kid to climb down).
@@ -209,10 +211,33 @@ The authors of this program may be contacted at http://forum.princed.org
 #define USE_LIGHTING
 
 // Enable screenshot features.
+#ifndef VITA
 #define USE_SCREENSHOT
+#endif
 
 // Automatically switch to keyboard or joystick/gamepad mode if there is input from that device.
 // Useful if SDL detected a gamepad but there is none.
 #define USE_AUTO_INPUT_MODE
+
+// Default SDL_Joystick button values
+#ifdef VITA
+#define VITA_BTN_TRIANGLE 0
+#define VITA_BTN_CIRCLE 1
+#define VITA_BTN_CROSS 2
+#define VITA_BTN_SQUARE 3
+#define VITA_BTN_LTRIGGER 4
+#define VITA_BTN_RTRIGGER 5
+#define VITA_BTN_DOWN 6
+#define VITA_BTN_LEFT 7
+#define VITA_BTN_UP 8
+#define VITA_BTN_RIGHT 9
+#define VITA_BTN_SELECT 10
+#define VITA_BTN_START 11
+#else
+#define SDL_JOYSTICK_BUTTON_Y 2
+#define SDL_JOYSTICK_BUTTON_X 3
+#define SDL_JOYSTICK_X_AXIS 0
+#define SDL_JOYSTICK_Y_AXIS 1
+#endif
 
 #endif

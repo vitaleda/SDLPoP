@@ -25,6 +25,10 @@ The authors of this program may be contacted at http://forum.princed.org
 #include <sys/stat.h>
 #include <errno.h>
 
+#ifdef VITA
+#include <kbdvita.h>
+#endif
+
 // Most functions in this file are different from those in the original game.
 
 void sdlperror(const char* header) {
@@ -152,7 +156,13 @@ int __pascal far pop_wait(int timer_index,int time) {
 
 static FILE* open_dat_from_root_or_data_dir(const char* filename) {
 	FILE* fp = NULL;
+#if VITA
+	char vita_path[POP_MAX_PATH];
+	snprintf(vita_path, sizeof(vita_path), "ux0:data/prince/%s", filename);
+	fp = fopen(vita_path, "rb");
+#else
 	fp = fopen(filename, "rb");
+#endif
 
 	// if failed, try if the DAT file can be opened in the data/ directory, instead of the main folder
 	if (fp == NULL) {
@@ -611,10 +621,18 @@ int __pascal far set_joy_mode() {
 	if (SDL_NumJoysticks() < 1) {
 		is_joyst_mode = 0;
 	} else {
-		sdl_controller_ = SDL_GameControllerOpen(0);
-		if (sdl_controller_ == NULL) {
-			is_joyst_mode = 0;
-		} else {
+		if (SDL_IsGameController(0)) {
+			sdl_controller_ = SDL_GameControllerOpen(0);
+			if (sdl_controller_ == NULL) {
+				is_joyst_mode = 0;
+			} else {
+				is_joyst_mode = 1;
+			}
+		}
+		// We have a joystick connected, but it's NOT compatible with the SDL_GameController
+		// interface, so we resort to the classic SDL_Joystick interface instead
+		else {
+			sdl_joystick_ = SDL_JoystickOpen(0);
 			is_joyst_mode = 1;
 		}
 	}
@@ -1247,6 +1265,11 @@ void __pascal far draw_text_cursor(int xpos,int ypos,int color) {
 
 // seg009:053C
 int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length,const char *initial,int has_initial,int arg_4,int color,int bgcolor) {
+#ifdef VITA
+	char *str = kbdvita_get("Enter your name", max_length);
+	strncpy(buffer, (str != NULL) ? str : "No name", max_length);
+	return strlen(buffer);
+#else
 	short length;
 	word key;
 	short cursor_visible;
@@ -1323,6 +1346,7 @@ int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length
 		}
 		request_screen_update();
 	} while(1);
+#endif
 }
 
 #else // USE_TEXT
@@ -1484,7 +1508,11 @@ size_t digi_remaining_length = 0;
 // The properties of the audio device.
 SDL_AudioSpec* digi_audiospec = NULL;
 // The desired samplerate. Everything will be resampled to this.
+#ifdef VITA
+const int digi_samplerate = 48000;
+#else
 const int digi_samplerate = 44100;
+#endif
 
 void stop_digi() {
 #ifndef USE_MIXER
@@ -1633,7 +1661,11 @@ void init_digi() {
 	memset(desired, 0, sizeof(SDL_AudioSpec));
 	desired->freq = digi_samplerate; //buffer->digi.sample_rate;
 	desired->format = desired_audioformat;
+#ifdef VITA
+	desired->channels = 1;
+#else
 	desired->channels = 2;
+#endif
 	desired->samples = 1024;
 #ifndef USE_MIXER
 	desired->callback = digi_callback;
@@ -1664,7 +1696,11 @@ const int max_sound_id = 58;
 char** sound_names = NULL;
 
 void load_sound_names() {
+#ifdef VITA
+	const char* names_path = "ux0:data/prince/data/music/names.txt";
+#else
 	const char* names_path = "data/music/names.txt";
+#endif
 	if (sound_names != NULL) return;
 	FILE* fp = fopen(names_path,"rt");
 	if (fp==NULL) return;
@@ -1712,12 +1748,23 @@ sound_buffer_type* load_sound(int index) {
 				const char* ext=exts[i];
 				struct stat info;
 
+#ifdef VITA
+				snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.%s", sound_name(index), ext);
+#else
 				snprintf(filename, sizeof(filename), "data/music/%s.%s", sound_name(index), ext);
+#endif
 				// Skip nonexistent files:
 				if (stat(filename, &info))
 					continue;
 				//printf("Trying to load %s\n", filename);
+#ifdef VITA
+				FILE* f = fopen(filename, "rb");
+				char* mem = (char*)malloc(info.st_size);
+				fread(mem, 1, info.st_size, f);
+				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);
+#else
 				Mix_Music* music = Mix_LoadMUS(filename);
+#endif
 				if (music == NULL) {
 					sdlperror(filename);
 					//sdlperror("Mix_LoadWAV");
@@ -1953,8 +2000,13 @@ int __pascal far check_sound_playing() {
 
 // seg009:38ED
 void __pascal far set_gr_mode(byte grmode) {
+#ifdef VITA
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
+	             SDL_INIT_GAMECONTROLLER ) != 0) {
+#else
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
 	             SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC ) != 0) {
+#endif
 		sdlperror("SDL_Init");
 		quit(1);
 	}
@@ -1989,7 +2041,9 @@ void __pascal far set_gr_mode(byte grmode) {
 	if (use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320*5, 200*6);
 	} else {
+#ifndef VITA
 		SDL_RenderSetLogicalSize(renderer_, 320, 200);
+#endif
 	}
 
 	/* Migration to SDL2: everything is still blitted to onscreen_surface_, however:
@@ -2129,7 +2183,11 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			if (len >= 5 && filename_no_ext[len-4] == '.') {
 				filename_no_ext[len-4] = '\0'; // terminate, so ".DAT" is deleted from the filename
 			}
+#ifdef VITA
+			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s", filename_no_ext, resource_id, extension);
+#else
 			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",filename_no_ext, resource_id, extension);
+#endif
 			if (!use_custom_levelset) {
 				//printf("loading (binary) %s",image_filename);
 				fp = fopen(image_filename, "rb");
@@ -2137,7 +2195,11 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			else {
 				char image_filename_mod[POP_MAX_PATH];
 				// before checking data/, first try mods/MODNAME/data/
+#ifdef VITA
+				snprintf(image_filename_mod, sizeof(image_filename_mod), "ux0:data/prince/mods/%s/%s", levelset_name, image_filename);
+#else
 				snprintf(image_filename_mod, sizeof(image_filename_mod), "mods/%s/%s", levelset_name, image_filename);
+#endif
 				//printf("loading (binary) %s",image_filename_mod);
 				fp = fopen(image_filename_mod, "rb");
 				if (fp == NULL) {
@@ -2723,6 +2785,71 @@ void idle() {
 					default: break;
 				}
 				break;
+			case SDL_JOYBUTTONDOWN:
+#ifdef USE_AUTO_INPUT_MODE
+				if (!is_joyst_mode) {
+					is_joyst_mode = 1;
+					is_keyboard_mode = 0;
+				}
+#endif
+				switch (event.jbutton.button)
+				{
+#ifdef VITA
+					case VITA_BTN_LEFT: joy_hat_states[0] = -1; break;
+					case VITA_BTN_RIGHT: joy_hat_states[0] = 1; break;
+					case VITA_BTN_UP: case VITA_BTN_CIRCLE: joy_hat_states[1] = -1; break;
+					case VITA_BTN_DOWN: joy_hat_states[1] = 1; break;
+					case VITA_BTN_CROSS: joy_X_button_state = 1; last_key_scancode = 1; break;
+					case VITA_BTN_TRIANGLE: is_show_time = 1; break;
+					case VITA_BTN_LTRIGGER: last_key_scancode = SDL_SCANCODE_F9; break;
+					case VITA_BTN_RTRIGGER: last_key_scancode = SDL_SCANCODE_F6; break;
+#else
+					case SDL_JOYSTICK_BUTTON_Y:            joy_AY_buttons_state = -1; break; /*** Y (up) ***/
+					case SDL_JOYSTICK_BUTTON_X:            joy_X_button_state = 1;    break; /*** X (shift) ***/
+#endif
+				}
+				break;
+			case SDL_JOYBUTTONUP:
+				switch (event.jbutton.button)
+				{
+#ifdef VITA
+					case VITA_BTN_LEFT: joy_hat_states[0] = 0; break;
+					case VITA_BTN_RIGHT: joy_hat_states[0] = 0; break;
+					case VITA_BTN_UP: case VITA_BTN_CIRCLE: joy_hat_states[1] = 0; break;
+					case VITA_BTN_DOWN: joy_hat_states[1] = 0; break;
+					case VITA_BTN_CROSS: joy_X_button_state = 0; break;
+#else
+					case SDL_JOYSTICK_BUTTON_Y:            joy_AY_buttons_state = 0; break; /*** Y (up) ***/
+					case SDL_JOYSTICK_BUTTON_X:            joy_X_button_state = 0;   break; /*** X (shift) ***/
+#endif
+					break;
+
+				}
+				break;
+#ifndef VITA
+			case SDL_JOYAXISMOTION:
+#ifdef USE_AUTO_INPUT_MODE
+				if (!is_joyst_mode) {
+					is_joyst_mode = 1;
+					is_keyboard_mode = 0;
+				}
+#endif
+				switch (event.jaxis.axis) 
+				{
+					case SDL_JOYSTICK_X_AXIS:
+						if (event.jaxis.value < 0)  joy_hat_states[0] = -1; // left   
+						if (event.jaxis.value > 0)  joy_hat_states[0] = 1;  // right
+						if (event.jaxis.value == 0) joy_hat_states[0] = 0;  // axis released
+					break;
+
+					case SDL_JOYSTICK_Y_AXIS:
+						if (event.jaxis.value < 0)  joy_hat_states[1] = -1; // up
+						if (event.jaxis.value > 0)  joy_hat_states[1] = 1;  // down
+						if (event.jaxis.value == 0) joy_hat_states[1] = 0;  // axis released
+					break;
+				}
+				break;
+#endif
 			case SDL_TEXTINPUT:
 				last_text_input = event.text.text[0]; // UTF-8 formatted char text input
 				break;

@@ -148,7 +148,11 @@ static inline int ini_process_word(const char* curr_name, const char* value, con
 	if(strcasecmp(curr_name, option_name) == 0) {
 		if (strcasecmp(value, "default") != 0) {
 			int named_value = ini_get_named_value(value, value_names);
+#ifdef VITA
+			*target = (named_value == INI_NO_VALID_NAME) ? ((word) strtoul(value, NULL, 0)) : ((word) named_value);
+#else
 			*target = (named_value == INI_NO_VALID_NAME) ? ((word) strtoumax(value, NULL, 0)) : ((word) named_value);
+#endif
 		}
 		return 1; // finished; don't look for more possible options that curr_name can be
 	}
@@ -159,7 +163,12 @@ static inline int ini_process_short(const char* curr_name, const char* value, co
 	if(strcasecmp(curr_name, option_name) == 0) {
 		if (strcasecmp(value, "default") != 0) {
 			int named_value = ini_get_named_value(value, value_names);
+#ifdef VITA
+			*target = (named_value == INI_NO_VALID_NAME) ? ((short) strtol(value, NULL, 0)) : ((short) named_value);
+
+#else
 			*target = (named_value == INI_NO_VALID_NAME) ? ((short) strtoimax(value, NULL, 0)) : ((short) named_value);
+#endif
 		}
 		return 1; // finished; don't look for more possible options that curr_name can be
 	}
@@ -170,7 +179,11 @@ static inline int ini_process_byte(const char* curr_name, const char* value, con
 	if(strcasecmp(curr_name, option_name) == 0) {
 		if (strcasecmp(value, "default") != 0) {
 			int named_value = ini_get_named_value(value, value_names);
+#ifdef VITA
+			*target = (named_value == INI_NO_VALID_NAME) ? ((byte) strtoul(value, NULL, 0)) : ((byte) named_value);
+#else
 			*target = (named_value == INI_NO_VALID_NAME) ? ((byte) strtoumax(value, NULL, 0)) : ((byte) named_value);
+#endif
 		}
 		return 1; // finished; don't look for more possible options that curr_name can be
 	}
@@ -372,7 +385,11 @@ static int mod_ini_callback(const char *section, const char *name, const char *v
 }
 
 void load_global_options() {
+#ifdef VITA
+	ini_load("ux0:data/prince/SDLPoP.ini", global_ini_callback); // global configuration
+#else
 	ini_load("SDLPoP.ini", global_ini_callback); // global configuration
+#endif
 }
 
 void check_mod_param() {
@@ -390,7 +407,11 @@ void load_mod_options() {
 	// load mod-specific INI configuration
 	if (use_custom_levelset) {
 		char filename[POP_MAX_PATH];
+#ifdef VITA
+		snprintf(filename, sizeof(filename), "ux0:data/prince/mods/%s/%s", levelset_name, "mod.ini");
+#else
 		snprintf(filename, sizeof(filename), "mods/%s/%s", levelset_name, "mod.ini");
+#endif
 		ini_load(filename, mod_ini_callback);
 	}
 

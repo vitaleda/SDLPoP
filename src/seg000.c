@@ -159,8 +159,10 @@ void __pascal far init_game_main() {
 	load_sounds(0, 43);
 	load_opt_sounds(43, 56); //added
 	hof_read();
+#ifndef VITA
 	show_splash(); // added
 	show_use_fixes_and_enhancements_prompt(); // added
+#endif
 	start_game();
 }
 
@@ -326,7 +328,11 @@ int quick_process(process_func_type process_func) {
 	return ok;
 }
 
+#ifdef VITA
+const char* quick_file = "ux0:data/prince/QUICKSAVE.SAV";
+#else
 const char* quick_file = "QUICKSAVE.SAV";
+#endif
 const char quick_version[] = "V1.16b4 ";
 char quick_control[] = "........";
 
