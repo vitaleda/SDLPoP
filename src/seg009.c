@@ -2065,13 +2065,13 @@ void __pascal far set_gr_mode(byte grmode) {
 	}
 
 	// Allow us to use a consistent set of screen co-ordinates, even if the screen size changes
+#ifndef VITA
 	if (use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320*5, 200*6);
 	} else {
-#ifndef VITA
 		SDL_RenderSetLogicalSize(renderer_, 320, 200);
-#endif
 	}
+#endif
 
 	/* Migration to SDL2: everything is still blitted to onscreen_surface_, however:
 	 * SDL2 renders textures to the screen instead of surfaces; so for now, every screen
@@ -2110,7 +2110,27 @@ void request_screen_update() {
 	if (!screen_updates_suspended) {
 		SDL_UpdateTexture(sdl_texture_, NULL, onscreen_surface_->pixels, onscreen_surface_->pitch);
 		SDL_RenderClear(renderer_);
+#ifdef VITA
+		if (start_fullscreen) {
+			SDL_RenderCopy(renderer_, sdl_texture_, NULL, NULL);
+		} else {
+			int sh = 544;
+			int factW = (use_correct_aspect_ratio) ? 5 : 1;
+			int factH = (use_correct_aspect_ratio) ? 6 : 1;
+			int sw = (float)320*factW*((float)sh/(float)(200*factH));
+			int x = (960 - sw)/2;
+
+			SDL_Rect src;
+			src.x = 0; src.y = 0; src.w = 320; src.h = 200;
+
+			SDL_Rect dst;
+			dst.x = x; dst.y = 0; dst.w = sw; dst.h = sh;
+
+			SDL_RenderCopy(renderer_, sdl_texture_, &src, &dst);
+		}
+#else
 		SDL_RenderCopy(renderer_, sdl_texture_, NULL, NULL);
+#endif
 		SDL_RenderPresent(renderer_);
 	}
 }
@@ -2650,6 +2670,9 @@ void __pascal start_timer(int timer_index, int length) {
 }
 
 void toggle_fullscreen() {
+#ifdef VITA
+	start_fullscreen = !start_fullscreen;
+#endif
 	uint32_t flags = SDL_GetWindowFlags(window_);
 	if (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
 		SDL_SetWindowFullscreen(window_, 0);
@@ -2845,6 +2868,7 @@ void idle() {
 					case VITA_BTN_UP: case VITA_BTN_CIRCLE: joy_hat_states[1] = 0; break;
 					case VITA_BTN_DOWN: joy_hat_states[1] = 0; break;
 					case VITA_BTN_CROSS: joy_X_button_state = 0; break;
+					case VITA_BTN_SELECT: toggle_fullscreen(); break;
 #else
 					case SDL_JOYSTICK_BUTTON_Y:            joy_AY_buttons_state = 0; break; /*** Y (up) ***/
 					case SDL_JOYSTICK_BUTTON_X:            joy_X_button_state = 0;   break; /*** X (shift) ***/
