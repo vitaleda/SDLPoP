@@ -20,7 +20,14 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 # Flags and includes
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVITA -fno-exceptions")
 
+include_directories(
+  ${CMAKE_SOURCE_DIR}/vitashaderlibs/vita2d_fbo/includes/
+  ${CMAKE_SOURCE_DIR}/vitashaderlibs/vita-shader-collection/includes/
+)
+
 link_directories(
+  ${CMAKE_SOURCE_DIR}/vitashaderlibs/vita2d_fbo/lib/
+  ${CMAKE_SOURCE_DIR}/vitashaderlibs/vita-shader-collection/lib/
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -41,6 +48,7 @@ add_executable(${VITA_APPNAME}
   src/seg008.c
   src/seg009.c
   src/seqtbl.c
+  src/psp2_shader.c
 )
 
 target_link_libraries(${VITA_APPNAME}
@@ -52,8 +60,9 @@ target_link_libraries(${VITA_APPNAME}
   ogg
   jpeg
   png
-  vita2d
   kbdvita
+  vita2d
+  vitashaders
   z
   m
   SceAppUtil_stub
