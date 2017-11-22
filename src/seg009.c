@@ -227,7 +227,7 @@ int __pascal far pop_wait(int timer_index,int time) {
 
 static FILE* open_dat_from_root_or_data_dir(const char* filename) {
 	FILE* fp = NULL;
-#if VITA
+#ifdef VITA
 	char vita_path[POP_MAX_PATH];
 	snprintf(vita_path, sizeof(vita_path), "ux0:data/prince/%s", filename);
 	fp = fopen(vita_path, "rb");
