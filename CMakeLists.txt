@@ -71,6 +71,7 @@ target_link_libraries(${VITA_APPNAME}
   SceCtrl_stub
   SceDisplay_stub
   SceGxm_stub
+  SceHid_stub
   SceSysmodule_stub
   SceTouch_stub
 )
