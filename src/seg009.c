@@ -19,10 +19,7 @@ The authors of this program may be contacted at http://forum.princed.org
 */
 
 #include "common.h"
-#include <fcntl.h>
-#include <stdlib.h>
 #include <time.h>
-#include <sys/stat.h>
 #include <errno.h>
 
 #ifdef VITA
@@ -107,6 +104,43 @@ void sdlperror(const char* header) {
 	printf("%s: %s\n",header,error);
 	//quit(1);
 }
+
+char exe_dir[POP_MAX_PATH] = ".";
+bool found_exe_dir = false;
+
+void find_exe_dir() {
+	if (found_exe_dir) return;
+	strncpy(exe_dir, g_argv[0], sizeof(exe_dir));
+	char* last_slash = NULL;
+	char* pos = exe_dir;
+	for (char c = *pos; c != '\0'; c = *(++pos)) {
+		if (c == '/' || c == '\\') {
+			last_slash = pos;
+		}
+	}
+	if (last_slash != NULL) {
+		*last_slash = '\0';
+	}
+	found_exe_dir = true;
+}
+
+static inline bool file_exists(const char* filename) {
+    return (access(filename, F_OK) != -1);
+}
+
+const char* locate_file_(const char* filename, char* path_buffer, int buffer_size) {
+	if(file_exists(filename)) {
+		return filename;
+	} else {
+		// If failed, it may be that SDLPoP is being run from the wrong different working directory.
+		// We can try to rescue the situation by loading from the directory of the executable.
+		find_exe_dir();
+        snprintf(path_buffer, buffer_size, "%s/%s", exe_dir, filename);
+        return (const char*) path_buffer;
+	}
+}
+
+
 
 dat_type* dat_chain_ptr = NULL;
 
@@ -239,6 +273,11 @@ static FILE* open_dat_from_root_or_data_dir(const char* filename) {
 	if (fp == NULL) {
 		char data_path[POP_MAX_PATH];
 		snprintf(data_path, sizeof(data_path), "data/%s", filename);
+
+        if (!file_exists(data_path)) {
+            find_exe_dir();
+            snprintf(data_path, sizeof(data_path), "%s/data/%s", exe_dir, filename);
+        }
 
 		// verify that this is a regular file and not a directory (otherwise, don't open)
 		struct stat path_stat;
@@ -710,6 +749,7 @@ int __pascal far set_joy_mode() {
 		else {
 			sdl_joystick_ = SDL_JoystickOpen(0);
 			is_joyst_mode = 1;
+			using_sdl_joystick_interface = 1;
 		}
 	}
 	if (enable_controller_rumble && is_joyst_mode) {
@@ -1773,9 +1813,9 @@ char** sound_names = NULL;
 
 void load_sound_names() {
 #ifdef VITA
-	const char* names_path = "ux0:data/prince/data/music/names.txt";
+	const char* names_path = locate_file("ux0:data/prince/data/music/names.txt");
 #else
-	const char* names_path = "data/music/names.txt";
+	const char* names_path = locate_file("data/music/names.txt");
 #endif
 	if (sound_names != NULL) return;
 	FILE* fp = fopen(names_path,"rt");
@@ -1824,27 +1864,29 @@ sound_buffer_type* load_sound(int index) {
 			for (i = 0; i < COUNT(exts); ++i) {
 				char filename[POP_MAX_PATH];
 				const char* ext=exts[i];
-				struct stat info;
 
 #ifdef VITA
 				snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.%s", sound_name(index), ext);
 #else
 				snprintf(filename, sizeof(filename), "data/music/%s.%s", sound_name(index), ext);
 #endif
+				const char* located_filename = locate_file(filename);
 				// Skip nonexistent files:
-				if (stat(filename, &info))
+				if (!file_exists(located_filename))
 					continue;
 				//printf("Trying to load %s\n", filename);
 #ifdef VITA
-				FILE* f = fopen(filename, "rb");
+				struct stat info;
+				stat(located_filename, &info);
+				FILE* f = fopen(located_filename, "rb");
 				char* mem = (char*)malloc(info.st_size);
 				fread(mem, 1, info.st_size, f);
 				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);
 #else
-				Mix_Music* music = Mix_LoadMUS(filename);
+				Mix_Music* music = Mix_LoadMUS(located_filename);
 #endif
 				if (music == NULL) {
-					sdlperror(filename);
+					sdlperror(located_filename);
 					//sdlperror("Mix_LoadWAV");
 					continue;
 				}
@@ -2133,7 +2175,7 @@ void __pascal far set_gr_mode(byte grmode) {
 	                           pop_window_width, pop_window_height, flags);
 	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED );
 
-	SDL_Surface* icon = IMG_Load("data/icon.png");
+	SDL_Surface* icon = IMG_Load(locate_file("data/icon.png"));
 	if (icon == NULL) {
 		sdlperror("Could not load icon");
 	} else {
@@ -2322,7 +2364,7 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 #endif
 			if (!use_custom_levelset) {
 				//printf("loading (binary) %s",image_filename);
-				fp = fopen(image_filename, "rb");
+				fp = fopen(locate_file(image_filename), "rb");
 			}
 			else {
 				char image_filename_mod[POP_MAX_PATH];
@@ -2333,9 +2375,9 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 				snprintf(image_filename_mod, sizeof(image_filename_mod), "mods/%s/%s", levelset_name, image_filename);
 #endif
 				//printf("loading (binary) %s",image_filename_mod);
-				fp = fopen(image_filename_mod, "rb");
+				fp = fopen(locate_file(image_filename_mod), "rb");
 				if (fp == NULL) {
-					fp = fopen(image_filename, "rb");
+					fp = fopen(locate_file(image_filename), "rb");
 				}
 			}
 
@@ -2867,7 +2909,7 @@ void idle() {
 					joy_axis[event.caxis.axis] = event.caxis.value;
 
 #ifdef USE_AUTO_INPUT_MODE
-					if (!is_joyst_mode && (event.caxis.value >= JOY_THRESHOLD || event.caxis.value <= -JOY_THRESHOLD)) {
+					if (!is_joyst_mode && (event.caxis.value >= joystick_threshold || event.caxis.value <= -joystick_threshold)) {
 						is_joyst_mode = 1;
 						is_keyboard_mode = 0;
 					}
@@ -2921,15 +2963,9 @@ void idle() {
 				}
 				break;
 			case SDL_JOYBUTTONDOWN:
-#ifdef USE_AUTO_INPUT_MODE
-				if (!is_joyst_mode) {
-					is_joyst_mode = 1;
-					is_keyboard_mode = 0;
-				}
-#endif
+#ifdef VITA
 				switch (event.jbutton.button)
 				{
-#ifdef VITA
 					case VITA_BTN_LEFT: joy_hat_states[0] = -1; break;
 					case VITA_BTN_RIGHT: joy_hat_states[0] = 1; break;
 					case VITA_BTN_UP: case VITA_BTN_CIRCLE: joy_hat_states[1] = -1; break;
@@ -2938,54 +2974,61 @@ void idle() {
 					case VITA_BTN_TRIANGLE: is_show_time = 1; break;
 					case VITA_BTN_LTRIGGER: last_key_scancode = SDL_SCANCODE_F9; break;
 					case VITA_BTN_RTRIGGER: last_key_scancode = SDL_SCANCODE_F6; break;
-#else
-					case SDL_JOYSTICK_BUTTON_Y:            joy_AY_buttons_state = -1; break; /*** Y (up) ***/
-					case SDL_JOYSTICK_BUTTON_X:            joy_X_button_state = 1;    break; /*** X (shift) ***/
-#endif
 				}
 				break;
+#endif
 			case SDL_JOYBUTTONUP:
+#ifdef VITA
 				switch (event.jbutton.button)
 				{
-#ifdef VITA
 					case VITA_BTN_LEFT: joy_hat_states[0] = 0; break;
 					case VITA_BTN_RIGHT: joy_hat_states[0] = 0; break;
 					case VITA_BTN_UP: case VITA_BTN_CIRCLE: joy_hat_states[1] = 0; break;
 					case VITA_BTN_DOWN: joy_hat_states[1] = 0; break;
 					case VITA_BTN_CROSS: joy_X_button_state = 0; break;
 					case VITA_BTN_SELECT: toggle_fullscreen(); break;
-#else
-					case SDL_JOYSTICK_BUTTON_Y:            joy_AY_buttons_state = 0; break; /*** Y (up) ***/
-					case SDL_JOYSTICK_BUTTON_X:            joy_X_button_state = 0;   break; /*** X (shift) ***/
-#endif
-					break;
-
 				}
 				break;
+#endif
 #ifndef VITA
 			case SDL_JOYAXISMOTION:
+				// Only handle the event if the joystick is incompatible with the SDL_GameController interface.
+				// (Otherwise it will interfere with the normal action of the SDL_GameController API.)
+				if (!using_sdl_joystick_interface) {
+					break;
+				}
+				if (event.type == SDL_JOYAXISMOTION) {
+					if (event.jaxis.axis == SDL_JOYSTICK_X_AXIS) {
+						joy_axis[SDL_CONTROLLER_AXIS_LEFTX] = event.jaxis.value;
+					}
+					else if (event.jaxis.axis == SDL_JOYSTICK_Y_AXIS) {
+						joy_axis[SDL_CONTROLLER_AXIS_LEFTY] = event.jaxis.value;
+					}
+					// Disregard SDL_JOYAXISMOTION events within joystick 'dead zone'
+					int joy_x = joy_axis[SDL_CONTROLLER_AXIS_LEFTX];
+					int joy_y = joy_axis[SDL_CONTROLLER_AXIS_LEFTX];
+					if ((dword)(joy_x*joy_x) + (dword)(joy_y*joy_y) < (dword)(joystick_threshold*joystick_threshold)) {
+						break;
+					}
+
+				}
 #ifdef USE_AUTO_INPUT_MODE
 				if (!is_joyst_mode) {
 					is_joyst_mode = 1;
 					is_keyboard_mode = 0;
 				}
 #endif
-				switch (event.jaxis.axis) 
-				{
-					case SDL_JOYSTICK_X_AXIS:
-						if (event.jaxis.value < 0)  joy_hat_states[0] = -1; // left   
-						if (event.jaxis.value > 0)  joy_hat_states[0] = 1;  // right
-						if (event.jaxis.value == 0) joy_hat_states[0] = 0;  // axis released
-					break;
-
-					case SDL_JOYSTICK_Y_AXIS:
-						if (event.jaxis.value < 0)  joy_hat_states[1] = -1; // up
-						if (event.jaxis.value > 0)  joy_hat_states[1] = 1;  // down
-						if (event.jaxis.value == 0) joy_hat_states[1] = 0;  // axis released
-					break;
+				if (event.type == SDL_JOYBUTTONDOWN) {
+					if      (event.jbutton.button == SDL_JOYSTICK_BUTTON_Y)   joy_AY_buttons_state = -1; // Y (up)
+					else if (event.jbutton.button == SDL_JOYSTICK_BUTTON_X)   joy_X_button_state = -1;   // X (shift)
+				}
+				else if (event.type == SDL_JOYBUTTONUP) {
+					if      (event.jbutton.button == SDL_JOYSTICK_BUTTON_Y)   joy_AY_buttons_state = 0;  // Y (up)
+					else if (event.jbutton.button == SDL_JOYSTICK_BUTTON_X)   joy_X_button_state = 0;    // X (shift)
 				}
 				break;
 #endif
+
 			case SDL_TEXTINPUT:
 				last_text_input = event.text.text[0]; // UTF-8 formatted char text input
 				break;
