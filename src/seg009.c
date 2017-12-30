@@ -692,7 +692,12 @@ int __pascal far set_joy_mode() {
 	if (SDL_NumJoysticks() < 1) {
 		is_joyst_mode = 0;
 	} else {
-		if (SDL_IsGameController(0)) {
+#ifdef VITA
+		bool use_game_controller = false;
+#else
+		bool use_game_controller = SDL_IsGameController(0);
+#endif
+		if (use_game_controller) {
 			sdl_controller_ = SDL_GameControllerOpen(0);
 			if (sdl_controller_ == NULL) {
 				is_joyst_mode = 0;
