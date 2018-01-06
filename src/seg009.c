@@ -1,6 +1,6 @@
 /*
 SDLPoP, a port/conversion of the DOS game Prince of Persia.
-Copyright (C) 2013-2017  Dávid Nagy
+Copyright (C) 2013-2018  Dávid Nagy
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2143,6 +2143,21 @@ int __pascal far check_sound_playing() {
 	return speaker_playing || digi_playing || midi_playing;
 }
 
+void window_resized() {
+#if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
+	if (use_integer_scaling) {
+		int window_width, window_height;
+		SDL_GetWindowSize(window_, &window_width, &window_height);
+		int render_width, render_height;
+		SDL_RenderGetLogicalSize(renderer_, &render_width, &render_height);
+		// Disable integer scaling if it would result in downscaling.
+		// Because then the only suitable integer scaling factor is zero, i.e. the picture disappears.
+		SDL_bool makes_sense = (window_width >= render_width && window_height >= render_height);
+		SDL_RenderSetIntegerScale(renderer_, makes_sense);
+	}
+#endif
+}
+
 // seg009:38ED
 void __pascal far set_gr_mode(byte grmode) {
 #ifdef VITA
@@ -2174,6 +2189,13 @@ void __pascal far set_gr_mode(byte grmode) {
 	                           SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 	                           pop_window_width, pop_window_height, flags);
 	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED );
+	if (use_integer_scaling) {
+#if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
+		SDL_RenderSetIntegerScale(renderer_, SDL_TRUE);
+#else
+		printf("Warning: You need to compile with SDL 2.0.5 or newer for the use_integer_scaling option.\n");
+#endif
+	}
 
 	SDL_Surface* icon = IMG_Load(locate_file("data/icon.png"));
 	if (icon == NULL) {
@@ -2190,6 +2212,8 @@ void __pascal far set_gr_mode(byte grmode) {
 		SDL_RenderSetLogicalSize(renderer_, 320, 200);
 	}
 #endif
+
+	window_resized();
 
 	/* Migration to SDL2: everything is still blitted to onscreen_surface_, however:
 	 * SDL2 renders textures to the screen instead of surfaces; so for now, every screen
@@ -3049,6 +3073,7 @@ void idle() {
 */
 				switch (event.window.event) {
 					case SDL_WINDOWEVENT_SIZE_CHANGED:
+						window_resized();
 					//case SDL_WINDOWEVENT_MOVED:
 					//case SDL_WINDOWEVENT_RESTORED:
 					case SDL_WINDOWEVENT_EXPOSED:
