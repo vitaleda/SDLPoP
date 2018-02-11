@@ -459,9 +459,9 @@ DONE: Added new exceptions to .gitignore.
 FIXED: Ignore replay options in SDLPoP.ini if USE_REPLAY is not defined
 DONE: Added -std=gnu99 to the Dev-C++ project files.
 
-(no release date yet)
+2018 February ??
 =================
-(upcoming version)
+(version 1.18)
 
 FIXED: Fixed allow_triggering_any_tile hack to work with stuck-closed chompers.
 DONE: Linux: Added .desktop file and make install/uninstall.
@@ -483,3 +483,12 @@ FIXED: Add (back) SDL_Joystick interface because not all joysticks are SDL_Contr
 DONE: Convert waves to mixer sounds when they are loaded, not when they are first played. (suggested by @vanfanel)
 FIXED: Updated Readme.txt - fix macOS instructions.
 DONE: Added option to force pixel perfect scaling (integer scale factors).
+FIXED: Show level number when cycling between replays with Tab.
+DONE: Added option to change scaling method (sharp, fuzzy, blurry).
+FIXED: Improved the accuracy of timers.
+DONE: The debug timer (press T while running with debug cheats on) is now drawn transparently.
+DONE: The left-to-right animation in the intro now runs at a fixed speed (instead of being CPU limited).
+DONE: Added in-game menu (press Escape or Backspace) with ability to change settings while in-game.
+CHANGE: Removed the startup prompt to enable or disable fixes/enhancements (no longer needed).
+FIXED: Fixed turning off music not working.
+DONE: Added option for disabling and enabling all customization options at once.

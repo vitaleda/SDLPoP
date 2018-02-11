@@ -30,7 +30,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #define POP_MAX_PATH 256
 #define POP_MAX_OPTIONS_SIZE 256
 
-#define SDLPOP_VERSION "1.17"
+#define SDLPOP_VERSION "1.18"
 #define WINDOW_TITLE "Prince of Persia (SDLPoP) v" SDLPOP_VERSION
 
 // Enable or disable fading.
@@ -65,9 +65,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #define USE_QUICKLOAD_PENALTY
 
 // Enable recording/replay feature.
-#ifndef VITA
 #define USE_REPLAY
-#endif
 
 // Adds a way to crouch immediately after climbing up: press down and forward simultaneously.
 // In the original game, this could not be done (pressing down always causes the kid to climb down).
@@ -198,6 +196,10 @@ The authors of this program may be contacted at http://forum.princed.org
 // When the program starts, check whether the deobfuscated sequence table (seqtbl.c) is correct.
 //#define CHECK_SEQTABLE_MATCHES_ORIGINAL
 
+// Print out every second how closely the in-game elapsed time corresponds to the actual elapsed time.
+//#define CHECK_TIMING
+
+
 // Enable debug cheats (with command-line argument "debug")
 // "[" and "]" : nudge x position by one pixel
 // "T" : display remaining time in minutes, seconds and ticks
@@ -216,6 +218,9 @@ The authors of this program may be contacted at http://forum.princed.org
 // Automatically switch to keyboard or joystick/gamepad mode if there is input from that device.
 // Useful if SDL detected a gamepad but there is none.
 #define USE_AUTO_INPUT_MODE
+
+// Display the in-game menu.
+#define USE_MENU
 
 // Default SDL_Joystick button values
 #ifdef VITA

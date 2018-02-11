@@ -35,8 +35,10 @@ link_directories(
 add_executable(${VITA_APPNAME}
   src/data.c
   src/main.c
+  src/menu.c
   src/lighting.c
   src/options.c
+  src/replay.c
   src/seg000.c
   src/seg001.c
   src/seg002.c
