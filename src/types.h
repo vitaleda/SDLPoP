@@ -1058,7 +1058,7 @@ typedef struct names_list_type {
 } names_list_type;
 
 // Macro for declaring and initializing a names_list_type.
-#define NAME_LIST(listname, ...) const char listname[][MAX_OPTION_VALUE_NAME_LENGTH] = __VA_ARGS__; \
+#define NAMES_LIST(listname, ...) const char listname[][MAX_OPTION_VALUE_NAME_LENGTH] = __VA_ARGS__; \
 names_list_type listname##_list = {&listname, COUNT(listname)}
 
 #pragma pack(push,1)
@@ -1095,6 +1095,7 @@ typedef struct fixes_options_type {
 	byte fix_feather_interrupted_by_leveldoor;
 	byte fix_offscreen_guards_disappearing;
 	byte fix_move_after_sheathe;
+	byte fix_hidden_floors_during_flashing;
 } fixes_options_type;
 
 typedef struct custom_options_type {
