@@ -59,7 +59,7 @@ extern "C" {
 #define ABS(x) ((x)<0?-(x):(x))
 #endif
 
-#ifdef VITA
+#ifdef __vita__
 #include <psp2/kernel/clib.h>
 #define printf sceClibPrintf
 #endif

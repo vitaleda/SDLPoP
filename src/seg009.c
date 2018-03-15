@@ -18,11 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 The authors of this program may be contacted at http://forum.princed.org
 */
 
+#define STB_VORBIS_IMPLEMENTATION
+#define STB_VORBIS_NO_STDIO // Don't compile functionality that we do not need.
+#define STB_VORBIS_NO_PUSHDATA_API
+
 #include "common.h"
 #include <time.h>
 #include <errno.h>
 
-#ifdef VITA
+#ifdef __vita__
 #include <kbdvita.h>
 #include "psp2_shader.h"
 #include <vita2d.h>
@@ -195,7 +199,7 @@ int __pascal far pop_wait(int timer_index,int time) {
 
 static FILE* open_dat_from_root_or_data_dir(const char* filename) {
 	FILE* fp = NULL;
-#ifdef VITA
+#ifdef __vita__
 	char vita_path[POP_MAX_PATH];
 	snprintf(vita_path, sizeof(vita_path), "ux0:data/prince/%s", filename);
 	fp = fopen(vita_path, "rb");
@@ -230,11 +234,13 @@ dat_type *__pascal open_dat(const char *filename,int drive) {
 		fp = open_dat_from_root_or_data_dir(filename);
 	}
 	else {
-		char filename_mod[POP_MAX_PATH];
-		// before checking the root directory, first try mods/MODNAME/
-		snprintf(filename_mod, sizeof(filename_mod), "%s/%s/%s", mods_folder, levelset_name, filename);
-		fp = fopen(filename_mod, "rb");
-		if (fp == NULL) {
+		if (!skip_mod_data_files) {
+			char filename_mod[POP_MAX_PATH];
+			// before checking the root directory, first try mods/MODNAME/
+			snprintf(filename_mod, sizeof(filename_mod), "%s/%s", mod_data_path, filename);
+			fp = fopen(filename_mod, "rb");
+		}
+		if (fp == NULL && !skip_normal_data_files) {
 			fp = open_dat_from_root_or_data_dir(filename);
 		}
 	}
@@ -593,6 +599,11 @@ image_type* decode_image(image_data_type* image_data, dat_pal_type* palette) {
 		colors[i].b = palette->vga[i].b << 2;
 		colors[i].a = SDL_ALPHA_OPAQUE;   // SDL2's SDL_Color has a fourth alpha component
 	}
+	// Force 0th color to be black for non-transparent blitters. (hitpoints, shadow)
+	// This is needed to remove the colored rectangles around hitpoints and the shadow, when using Brain's SNES graphics for example.
+	colors[0].r = 0;
+	colors[0].g = 0;
+	colors[0].b = 0;
 	colors[0].a = SDL_ALPHA_TRANSPARENT;
 	SDL_SetPaletteColors(image->format->palette, colors, 0, 16); // SDL_SetColors = deprecated
 	return image;
@@ -665,7 +676,7 @@ int __pascal far set_joy_mode() {
 	if (SDL_NumJoysticks() < 1) {
 		is_joyst_mode = 0;
 	} else {
-#ifdef VITA
+#ifdef __vita__
 		bool use_game_controller = false;
 #else
 		bool use_game_controller = SDL_IsGameController(0);
@@ -1328,7 +1339,7 @@ void __pascal far draw_text_cursor(int xpos,int ypos,int color) {
 
 // seg009:053C
 int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length,const char *initial,int has_initial,int arg_4,int color,int bgcolor) {
-#ifdef VITA
+#ifdef __vita__
 	char *str = kbdvita_get("Enter your name", max_length);
 	strncpy(buffer, (str != NULL) ? str : "No name", max_length);
 	return strlen(buffer);
@@ -1545,6 +1556,7 @@ SDL_TimerID sound_timer = 0;
 short speaker_playing = 0;
 short digi_playing = 0;
 short midi_playing = 0;
+short ogg_playing = 0;
 
 void __pascal far speaker_sound_stop() {
 	// stub
@@ -1568,15 +1580,10 @@ size_t digi_remaining_length = 0;
 // The properties of the audio device.
 SDL_AudioSpec* digi_audiospec = NULL;
 // The desired samplerate. Everything will be resampled to this.
-#ifdef VITA
-const int digi_samplerate = 48000;
-#else
 const int digi_samplerate = 44100;
-#endif
 
 void stop_digi() {
-#ifndef USE_MIXER
-	SDL_PauseAudio(1);
+//	SDL_PauseAudio(1);
 	if (!digi_playing) return;
 	SDL_LockAudio();
 	digi_playing = 0;
@@ -1590,26 +1597,31 @@ void stop_digi() {
 		digi_audiospec = NULL;
 	}
 	*/
-	if (digi_buffer != NULL) {
-		free(digi_buffer);
-		digi_buffer = NULL;
-	}
+	digi_buffer = NULL;
 	digi_remaining_length = 0;
 	digi_remaining_pos = NULL;
 	SDL_UnlockAudio();
-#else
-	Mix_HaltChannel(-1);
-	Mix_HaltMusic();
-	digi_playing = 0;
-#endif
+}
+
+// Decoder for the currently playing OGG sound. (This also holds the playback position.)
+stb_vorbis* ogg_decoder;
+
+void stop_ogg() {
+    SDL_PauseAudio(1);
+    if (!ogg_playing) return;
+    ogg_playing = 0;
+    SDL_LockAudio();
+    ogg_decoder = NULL;
+    SDL_UnlockAudio();
 }
 
 // seg009:7214
 void __pascal far stop_sounds() {
 	// stub
 	stop_digi();
-	// stop_midi();
+	stop_midi();
 	speaker_sound_stop();
+    stop_ogg();
 }
 
 Uint32 speaker_callback(Uint32 interval, void *param) {
@@ -1649,7 +1661,6 @@ void __pascal far play_speaker_sound(sound_buffer_type far *buffer) {
 	speaker_playing = 1;
 }
 
-#ifndef USE_MIXER
 void digi_callback(void *userdata, Uint8 *stream, int len) {
 	// Don't go over the end of either the input or the output buffer.
 	size_t copy_len = MIN(len, digi_remaining_length);
@@ -1678,22 +1689,55 @@ void digi_callback(void *userdata, Uint8 *stream, int len) {
 	digi_remaining_length -= copy_len;
 	digi_remaining_pos += copy_len;
 }
-#endif
 
-#ifdef USE_MIXER
-void channel_finished(int channel) {
-	digi_playing = 0;
-	//printf("Finished channel %d\n", channel);
-	SDL_Event event;
-	memset(&event, 0, sizeof(event));
-	event.type = SDL_USEREVENT;
-	event.user.code = userevent_SOUND;
-	SDL_PushEvent(&event);
+void ogg_callback(void *userdata, Uint8 *stream, int len) {
+    int output_channels = digi_audiospec->channels;
+    int bytes_per_sample = sizeof(short) * output_channels;
+    int samples_requested = len / bytes_per_sample;
+
+	int samples_filled;
+    if (is_sound_on) {
+		samples_filled = stb_vorbis_get_samples_short_interleaved(ogg_decoder, output_channels,
+                                                                      (short*) stream, len / sizeof(short));
+		if (samples_filled < samples_requested) {
+			// In case the sound does not fill the buffer: fill the rest of the buffer with silence.
+			int bytes_filled = samples_filled * bytes_per_sample;
+			int remaining_bytes = (samples_requested - samples_filled) * bytes_per_sample;
+			memset(stream + bytes_filled, digi_audiospec->silence, remaining_bytes);
+		}
+	} else {
+		// If sound is off: Mute the sound, but keep track of where we are.
+		memset(stream, digi_audiospec->silence, len);
+		// Let the decoder run normally (to advance the position), but discard the result.
+		byte* discarded_samples = alloca(len);
+		samples_filled = stb_vorbis_get_samples_short_interleaved(ogg_decoder, output_channels,
+																  (short*) discarded_samples, len / sizeof(short));
+	}
+	// Push an event if the sound has ended.
+	if (samples_filled == 0) {
+		//printf("ogg_callback(): sound ended\n");
+		SDL_Event event;
+		memset(&event, 0, sizeof(event));
+		event.type = SDL_USEREVENT;
+		event.user.code = userevent_SOUND;
+		ogg_playing = 0;
+		SDL_PushEvent(&event);
+	}
 }
-void music_finished(void) {
-	channel_finished(-1);
+
+void audio_callback(void* userdata, Uint8* stream, int len) {
+	memset(stream, digi_audiospec->silence, len);
+	if (digi_playing) {
+		digi_callback(userdata, stream, len);
+	}
+	// Note: music sounds and digi sounds are allowed to play simultaneously (will be blended together)
+	// I.e., digi sounds and music will not cut each other short.
+	if (midi_playing) {
+		midi_callback(userdata, stream, len);
+	} else if (ogg_playing) {
+		ogg_callback(userdata, stream, len);
+	}
 }
-#endif
 
 int digi_unavailable = 0;
 void init_digi() {
@@ -1721,14 +1765,9 @@ void init_digi() {
 	memset(desired, 0, sizeof(SDL_AudioSpec));
 	desired->freq = digi_samplerate; //buffer->digi.sample_rate;
 	desired->format = desired_audioformat;
-#ifdef VITA
-	desired->channels = 1;
-#else
 	desired->channels = 2;
-#endif
 	desired->samples = 1024;
-#ifndef USE_MIXER
-	desired->callback = digi_callback;
+	desired->callback = audio_callback;
 	desired->userdata = NULL;
 	if (SDL_OpenAudio(desired, NULL) != 0) {
 		sdlperror("SDL_OpenAudio");
@@ -1737,27 +1776,16 @@ void init_digi() {
 		return;
 	}
 	//SDL_PauseAudio(0);
-#else
-	if (Mix_OpenAudio(desired->freq, desired->format, desired->channels, desired->samples) != 0) {
-		sdlperror("Mix_OpenAudio");
-		digi_unavailable = 1;
-		return;
-	}
-	Mix_AllocateChannels(1);
-	Mix_ChannelFinished(channel_finished);
-	Mix_HookMusicFinished(music_finished);
-#endif
 	digi_audiospec = desired;
 }
 
-#ifdef USE_MIXER
 const int sound_channel = 0;
 const int max_sound_id = 58;
 char** sound_names = NULL;
 
 void load_sound_names() {
-#ifdef VITA
-	const char* names_path = locate_file("ux0:data/prince/data/music/names.txt");
+#ifdef __vita__
+	const char* names_path = locate_file("ux0:data/prince/music/names.txt");
 #else
 	const char* names_path = locate_file("data/music/names.txt");
 #endif
@@ -1789,107 +1817,109 @@ char* sound_name(int index) {
 	}
 }
 
-void convert_digi_sound(sound_buffer_type *buffer);
-#endif
+sound_buffer_type* convert_digi_sound(sound_buffer_type* digi_buffer);
 
 sound_buffer_type* load_sound(int index) {
 	sound_buffer_type* result = NULL;
-#ifdef USE_MIXER
 	//printf("load_sound(%d)\n", index);
 	init_digi();
-	if (!digi_unavailable && result == NULL && index >= 0 && index < max_sound_id) {
+	if (enable_music && !digi_unavailable && result == NULL && index >= 0 && index < max_sound_id) {
 		//printf("Trying to load from music folder\n");
 
 		//load_sound_names();  // Moved to load_sounds()
 		if (sound_names != NULL && sound_name(index) != NULL) {
 			//printf("Loading from music folder\n");
-			const char* exts[]={"ogg","mp3","flac","wav"};
-			int i;
-			for (i = 0; i < COUNT(exts); ++i) {
+			do {
+				FILE* fp = NULL;
 				char filename[POP_MAX_PATH];
-				const char* ext=exts[i];
-
-#ifdef VITA
-				snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.%s", sound_name(index), ext);
-#else
-				snprintf(filename, sizeof(filename), "data/music/%s.%s", sound_name(index), ext);
-#endif
-				const char* located_filename = locate_file(filename);
-				// Skip nonexistent files:
-				if (!file_exists(located_filename))
-					continue;
-				//printf("Trying to load %s\n", filename);
-#ifdef VITA
-				struct stat info;
+/*				struct stat info;
 				stat(located_filename, &info);
 				FILE* f = fopen(located_filename, "rb");
 				char* mem = (char*)malloc(info.st_size);
 				fread(mem, 1, info.st_size, f);
-				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);
+				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);*/
+				if (!skip_mod_data_files) {
+					// before checking the root directory, first try mods/MODNAME/
+#ifdef __vita__
+					snprintf(filename, sizeof(filename), "ux0:data/prince/%s/music/%s.%s", mod_data_path, sound_name(index));
 #else
-				Mix_Music* music = Mix_LoadMUS(located_filename);
+					snprintf(filename, sizeof(filename), "%s/music/%s.ogg", mod_data_path, sound_name(index));
 #endif
-				if (music == NULL) {
-					sdlperror(located_filename);
-					//sdlperror("Mix_LoadWAV");
-					continue;
+					fp = fopen(filename, "rb");
 				}
-				//printf("Loaded sound from %s\n", filename);
+				if (fp == NULL && !skip_normal_data_files) {
+#ifdef __vita__
+					snprintf(filename, sizeof(filename), "ux0:data/prince/music/%s.ogg", sound_name(index));
+#else
+					snprintf(filename, sizeof(filename), "data/music/%s.ogg", sound_name(index));
+#endif
+					fp = fopen(locate_file(filename), "rb");
+				}
+				if (fp == NULL) {
+					break;
+				}
+				// Read the entire file (undecoded) into memory.
+				struct stat info;
+				if (fstat(fileno(fp), &info))
+					break;
+				size_t file_size = (size_t) MAX(0, info.st_size);
+				byte* file_contents = malloc(file_size);
+				if (fread(file_contents, 1, file_size, fp) != file_size) {
+					free(file_contents);
+					fclose(fp);
+					break;
+				}
+				fclose(fp);
+
+				// Decoding the entire file immediately would make the loading time much longer.
+				// However, we can also create the decoder now, and only use it when we are actually playing the file.
+				// (In the audio callback, we'll decode chunks of samples to the output stream, as needed).
+				stb_vorbis* decoder = stb_vorbis_open_memory(file_contents, file_size, NULL, NULL);
+				if (decoder == NULL) {
+					free(file_contents);
+					break;
+				}
 				result = malloc(sizeof(sound_buffer_type));
-				result->type = sound_music;
-				result->music = music;
-				break;
-			}
+				result->type = sound_ogg;
+				result->ogg.total_length = stb_vorbis_stream_length_in_samples(decoder) * sizeof(short);
+				result->ogg.file_contents = file_contents; // Remember in case we want to free the sound later.
+				result->ogg.decoder = decoder;
+			} while(0); // do once (breakable block)
 		} else {
 			//printf("sound_names = %p\n", sound_names);
 			//printf("sound_names[%d] = %p\n", index, sound_name(index));
 		}
 	}
-#endif
 	if (result == NULL) {
 		//printf("Trying to load from DAT\n");
 		result = (sound_buffer_type*) load_from_opendats_alloc(index + 10000, "bin", NULL, NULL);
 	}
-#ifdef USE_MIXER
-	if (result == NULL) {
-		fprintf(stderr, "Failed to load sound %d '%s'\n", index, sound_name(index));
-	} else {
-		// Convert waves to mixer chunks in advance.
-		if ((result->type & 7) == sound_digi) {
-			convert_digi_sound(result);
-		}
+	if (result != NULL && (result->type & 7) == sound_digi) {
+		sound_buffer_type* converted = convert_digi_sound(result);
+		free(result);
+		result = converted;
 	}
-#endif
+	if (result == NULL && !skip_normal_data_files) {
+		fprintf(stderr, "Failed to load sound %d '%s'\n", index, sound_name(index));
+	}
 	return result;
 }
 
-#ifdef USE_MIXER
-void __pascal far play_chunk_sound(sound_buffer_type far *buffer) {
-	//if (!is_sound_on) return;
+void play_ogg_sound(sound_buffer_type *buffer) {
 	init_digi();
 	if (digi_unavailable) return;
 	stop_sounds();
-	//printf("playing chunk sound %p\n", buffer);
-	if (Mix_PlayChannel(sound_channel, buffer->chunk, 0) == -1) {
-		sdlperror("Mix_PlayChannel");
-	}
-	digi_playing = 1;
-}
 
-void __pascal far play_music_sound(sound_buffer_type far *buffer) {
-	init_digi();
-	if (digi_unavailable) return;
-	stop_sounds();
-	if (Mix_PlayMusic(buffer->music, 0) == -1) {
-		sdlperror("Mix_PlayMusic");
-	}
-	digi_playing = 1;
-}
+	// Need to rewind the music, or else the decoder might continue where it left off, the last time this sound played.
+	stb_vorbis_seek_start(buffer->ogg.decoder);
 
-Uint32 fourcc(char* string) {
-	return *(Uint32*)string;
+	SDL_LockAudio();
+    ogg_decoder = buffer->ogg.decoder;
+	SDL_UnlockAudio();
+	SDL_PauseAudio(0);
+
+	ogg_playing = 1;
 }
-#endif
 
 int wave_version = -1;
 
@@ -1897,8 +1927,6 @@ typedef struct waveinfo_type {
 	int sample_rate, sample_size, sample_count;
 	byte* samples;
 } waveinfo_type;
-
-bool determine_wave_version(sound_buffer_type *buffer, waveinfo_type* waveinfo);
 
 bool determine_wave_version(sound_buffer_type *buffer, waveinfo_type* waveinfo) {
 	int version = wave_version;
@@ -1932,105 +1960,74 @@ bool determine_wave_version(sound_buffer_type *buffer, waveinfo_type* waveinfo) 
 	}
 }
 
-#ifndef USE_MIXER
+sound_buffer_type* convert_digi_sound(sound_buffer_type* digi_buffer) {
+	init_digi();
+	if (digi_unavailable) return NULL;
+	waveinfo_type waveinfo;
+	if (false == determine_wave_version(digi_buffer, &waveinfo)) return NULL;
+
+	float freq_ratio = (float)waveinfo.sample_rate /  (float)digi_audiospec->freq;
+
+	int source_length = waveinfo.sample_count;
+	int expanded_frames = source_length * digi_audiospec->freq / waveinfo.sample_rate;
+	int expanded_length = expanded_frames * 2 * sizeof(short);
+	sound_buffer_type* converted_buffer = malloc(sizeof(sound_buffer_type) + expanded_length);
+
+	converted_buffer->type = sound_digi_converted;
+	converted_buffer->converted.length = expanded_length;
+
+	byte* source = waveinfo.samples;
+	short* dest = converted_buffer->converted.samples;
+
+	for (int i = 0; i < expanded_frames; ++i) {
+		float src_frame_float = i * freq_ratio;
+		int src_frame_0 = (int) src_frame_float; // truncation
+
+		int sample_0 = (source[src_frame_0] | (source[src_frame_0] << 8)) - 32768;
+		short interpolated_sample;
+		if (src_frame_0 >= waveinfo.sample_count-1) {
+			interpolated_sample = (short)sample_0;
+		} else {
+			int src_frame_1 = src_frame_0 + 1;
+			float alpha = src_frame_float - src_frame_0;
+			int sample_1 = (source[src_frame_1] | (source[src_frame_1] << 8)) - 32768;
+			interpolated_sample = (short)((1.0f - alpha) * sample_0 + alpha * sample_1);
+		}
+		for (int channel = 0; channel < digi_audiospec->channels; ++channel) {
+			*dest++ = interpolated_sample;
+		}
+	}
+
+	return converted_buffer;
+}
+
 // seg009:74F0
 void __pascal far play_digi_sound(sound_buffer_type far *buffer) {
 	//if (!is_sound_on) return;
 	init_digi();
 	if (digi_unavailable) return;
-	//stop_digi();
-	stop_sounds();
+	stop_digi();
+//	stop_sounds();
 	//printf("play_digi_sound(): called\n");
-
-	waveinfo_type waveinfo;
-	if (false == determine_wave_version(buffer, &waveinfo)) return;
-
-	SDL_AudioCVT cvt;
-	memset(&cvt, 0, sizeof(cvt));
-	int result = SDL_BuildAudioCVT(&cvt,
-		AUDIO_U8, 1, waveinfo.sample_rate,
-		digi_audiospec->format, digi_audiospec->channels, digi_audiospec->freq
-	);
-	// The case of result == 0 is undocumented, but it may occur.
-	if (result != 1 && result != 0) {
-		sdlperror("SDL_BuildAudioCVT");
-		printf("(returned %d)\n", result);
-		quit(1);
+	if ((buffer->type & 7) != sound_digi_converted) {
+		printf("Tried to play unconverted digi sound.\n");
+		return;
 	}
-	int dlen = waveinfo.sample_count; // if format is AUDIO_U8
-	cvt.buf = (Uint8*) malloc(dlen * cvt.len_mult);
-	memcpy(cvt.buf, waveinfo.samples, dlen);
-	cvt.len = dlen;
-	if (SDL_ConvertAudio(&cvt) != 0) {
-		sdlperror("SDL_ConvertAudio");
-		quit(1);
-	}
-
 	SDL_LockAudio();
-	digi_buffer = cvt.buf;
+	digi_buffer = (byte*) buffer->converted.samples;
 	digi_playing = 1;
-//	digi_remaining_length = sample_count;
-//	digi_remaining_pos = samples;
-	digi_remaining_length = cvt.len_cvt;
+	digi_remaining_length = buffer->converted.length;
 	digi_remaining_pos = digi_buffer;
 	SDL_UnlockAudio();
 	SDL_PauseAudio(0);
 }
-#else
-void __pascal far play_digi_sound(sound_buffer_type far *buffer) {
-	printf("Warning: Tried to play a digi sound without converting it to a mixer chunk first!\n");
-}
-
-void convert_digi_sound(sound_buffer_type *buffer) {
-	waveinfo_type waveinfo;
-	if (false == determine_wave_version(buffer, &waveinfo)) return;
-
-	// Convert the DAT sound to WAV, so the Mixer can load it.
-	int size = waveinfo.sample_count;
-	int rounded_size = (size+1)&(~1);
-	int alloc_size = sizeof(WAV_header_type) + rounded_size;
-	WAV_header_type* wav_data = malloc(alloc_size);
-	wav_data->ChunkID = fourcc("RIFF");
-	wav_data->ChunkSize = 36 + rounded_size;
-	wav_data->Format = fourcc("WAVE");
-	wav_data->Subchunk1ID = fourcc("fmt ");
-	wav_data->Subchunk1Size = 16;
-	wav_data->AudioFormat = 1; // PCM
-	wav_data->NumChannels = 1; // Mono
-	wav_data->SampleRate = waveinfo.sample_rate;
-	wav_data->BitsPerSample = waveinfo.sample_size;
-	wav_data->ByteRate = wav_data->SampleRate * wav_data->NumChannels * wav_data->BitsPerSample/8;
-	wav_data->BlockAlign = wav_data->NumChannels * wav_data->BitsPerSample/8;
-	wav_data->Subchunk2ID = fourcc("data");
-	wav_data->Subchunk2Size = size;
-	memcpy(wav_data->Data, waveinfo.samples, size);
-	SDL_RWops* rw = SDL_RWFromConstMem(wav_data, alloc_size);
-	Mix_Chunk *chunk = Mix_LoadWAV_RW(rw, 1);
-	if (chunk == NULL) {
-		FILE* fp = fopen("dump.wav","wb");
-		fwrite(wav_data,alloc_size,1,fp);
-		fclose(fp);
-	}
-	free(wav_data);
-	if (chunk == NULL) {
-		sdlperror("Mix_LoadWAV_RW");
-		return;
-	}
-	buffer->type = sound_chunk;
-	buffer->chunk = chunk;
-}
-#endif
 
 void free_sound(sound_buffer_type far *buffer) {
 	if (buffer == NULL) return;
-#ifdef USE_MIXER
-	if (buffer->type == sound_chunk) {
-		Mix_FreeChunk(buffer->chunk);
+    if (buffer->type == sound_ogg) {
+        stb_vorbis_close(buffer->ogg.decoder);
+		free(buffer->ogg.file_contents);
 	}
-	if (buffer->type == sound_music) {
-		Mix_FreeMusic(buffer->music);
-	}
-#endif
 	free(buffer);
 }
 
@@ -2051,17 +2048,16 @@ void __pascal far play_sound_from_buffer(sound_buffer_type far *buffer) {
 		case sound_speaker:
 			play_speaker_sound(buffer);
 		break;
+		case sound_digi_converted:
 		case sound_digi:
 			play_digi_sound(buffer);
 		break;
-#ifdef USE_MIXER
-		case sound_chunk:
-			play_chunk_sound(buffer);
+		case sound_midi:
+			play_midi_sound(buffer);
 		break;
-		case sound_music:
-			play_music_sound(buffer);
+		case sound_ogg:
+			play_ogg_sound(buffer);
 		break;
-#endif
 		default:
 			printf("Tried to play unimplemented sound type %d.\n", buffer->type);
 			quit(1);
@@ -2070,7 +2066,7 @@ void __pascal far play_sound_from_buffer(sound_buffer_type far *buffer) {
 }
 
 void turn_music_on_off(byte new_state) {
-	enable_mixer = new_state;
+	enable_music = new_state;
 	turn_sound_on_off(is_sound_on);
 }
 
@@ -2079,21 +2075,15 @@ void __pascal far turn_sound_on_off(byte new_state) {
 	// stub
 	is_sound_on = new_state;
 	//if (!is_sound_on) stop_sounds();
-#ifdef USE_MIXER
-	init_digi();
-	if (digi_unavailable) return;
-	Mix_Volume(-1, is_sound_on ? MIX_MAX_VOLUME : 0);
-	Mix_VolumeMusic((is_sound_on && enable_mixer) ? MIX_MAX_VOLUME : 0);
-#endif
 }
 
 // seg009:7299
 int __pascal far check_sound_playing() {
-	return speaker_playing || digi_playing || midi_playing;
+	return speaker_playing || digi_playing || midi_playing || ogg_playing;
 }
 
 void apply_aspect_ratio() {
-#ifndef VITA
+#ifndef __vita__
 	// Allow us to use a consistent set of screen co-ordinates, even if the screen size changes
 	if (use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320 * 5, 200 * 6); // 4:3
@@ -2131,13 +2121,17 @@ void init_overlay() {
 SDL_Surface* onscreen_surface_2x;
 
 void init_scaling() {
+	if (texture_sharp == NULL) {
+		texture_sharp = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, 320, 200);
+	}
 	if (scaling_type == 1) {
-		if (onscreen_surface_2x == NULL) {
+		if (!is_renderer_targettexture_supported && onscreen_surface_2x == NULL) {
 			onscreen_surface_2x = SDL_CreateRGBSurface(0, 320*2, 200*2, 24, 0xFF, 0xFF << 8, 0xFF << 16, 0) ;
 		}
 		if (texture_fuzzy == NULL) {
 			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
-			texture_fuzzy = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, 320*2, 200*2);
+			int access = is_renderer_targettexture_supported ? SDL_TEXTUREACCESS_TARGET : SDL_TEXTUREACCESS_STREAMING;
+			texture_fuzzy = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, access, 320*2, 200*2);
 			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 		}
 		target_texture = texture_fuzzy;
@@ -2149,9 +2143,6 @@ void init_scaling() {
 		}
 		target_texture = texture_blurry;
 	} else {
-		if (texture_sharp == NULL) {
-			texture_sharp = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, 320, 200);
-		}
 		target_texture = texture_sharp;
 	}
 	if (target_texture == NULL) {
@@ -2162,9 +2153,10 @@ void init_scaling() {
 
 // seg009:38ED
 void __pascal far set_gr_mode(byte grmode) {
-#ifdef VITA
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
-	             SDL_INIT_GAMECONTROLLER ) != 0) {
+	SDL_SetHint(SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
+#ifdef __vita__
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
+				SDL_INIT_GAMECONTROLLER ) != 0) {
 #else
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
 	             SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC ) != 0) {
@@ -2192,7 +2184,17 @@ void __pascal far set_gr_mode(byte grmode) {
 	                           pop_window_width, pop_window_height, flags);
 	// Make absolutely sure that VSync will be off, to prevent timer issues.
 	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
-	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED );
+#ifdef __vita__
+	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED);
+#else
+	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+	SDL_RendererInfo renderer_info;
+	if (SDL_GetRendererInfo(renderer_, &renderer_info) == 0) {
+		if (renderer_info.flags & SDL_RENDERER_TARGETTEXTURE) {
+			is_renderer_targettexture_supported = true;
+		}
+	}
+#endif
 	if (use_integer_scaling) {
 #if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
 		SDL_RenderSetIntegerScale(renderer_, SDL_TRUE);
@@ -2211,7 +2213,7 @@ void __pascal far set_gr_mode(byte grmode) {
 	apply_aspect_ratio();
 	window_resized();
 
-#ifdef VITA
+#ifdef __vita__
 	// For the sharp_bilinear_simple shader to work, linear filtering has to be enabled.
 	// This is done by a simple command here, supported by SDL2 for Vita since 2017/12/24.
 	// This affects all textures created after this command.
@@ -2265,7 +2267,8 @@ void draw_overlay() {
 	if (is_timer_displayed && start_level > 0) overlay = 1; // Timer overlay
 #endif
 #ifdef USE_MENU
-	if (is_menu_shown) overlay = 2; // Menu overlay - not drawn here directly, only copied from the overlay surface.
+	// Menu overlay - not drawn here directly, only copied from the overlay surface.
+	if (is_paused && is_menu_shown) overlay = 2;
 #endif
 	if (overlay != 0) {
 		is_overlay_displayed = true;
@@ -2311,12 +2314,24 @@ void update_screen() {
 		// Make "fuzzy pixels" like DOSBox does:
 		// First scale to double size with nearest-neighbor scaling, then scale to full screen with smooth scaling.
 		// The result is not as blurry as if we did only a smooth scaling, but not as sharp as if we did only nearest-neighbor scaling.
-		SDL_BlitScaled(surface, NULL, onscreen_surface_2x, NULL);
-		surface = onscreen_surface_2x;
+		if (is_renderer_targettexture_supported) {
+			SDL_UpdateTexture(texture_sharp, NULL, surface->pixels, surface->pitch);
+			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+			SDL_SetRenderTarget(renderer_, target_texture);
+			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+			SDL_RenderClear(renderer_);
+			SDL_RenderCopy(renderer_, texture_sharp, NULL, NULL);
+			SDL_SetRenderTarget(renderer_, NULL);
+		} else {
+			SDL_BlitScaled(surface, NULL, onscreen_surface_2x, NULL);
+			surface = onscreen_surface_2x;
+			SDL_UpdateTexture(target_texture, NULL, surface->pixels, surface->pitch);
+		}
+	} else {
+		SDL_UpdateTexture(target_texture, NULL, surface->pixels, surface->pitch);
 	}
-	SDL_UpdateTexture(target_texture, NULL, surface->pixels, surface->pitch);
 	SDL_RenderClear(renderer_);
-#ifdef VITA
+#ifdef __vita__
 	int sh = 544;
 	int factW = use_correct_aspect_ratio ? 5 : 1;
 	int factH = use_correct_aspect_ratio ? 6 : 1;
@@ -2431,8 +2446,8 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			if (len >= 5 && filename_no_ext[len-4] == '.') {
 				filename_no_ext[len-4] = '\0'; // terminate, so ".DAT" is deleted from the filename
 			}
-#ifdef VITA
-			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s", filename_no_ext, resource_id, extension);
+#ifdef __vita__
+			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/%s/res%d.%s", filename_no_ext, resource_id, extension);
 #else
 			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",filename_no_ext, resource_id, extension);
 #endif
@@ -2441,16 +2456,19 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 				fp = fopen(locate_file(image_filename), "rb");
 			}
 			else {
-				char image_filename_mod[POP_MAX_PATH];
-				// before checking data/, first try mods/MODNAME/data/
-#ifdef VITA
-				snprintf(image_filename_mod, sizeof(image_filename_mod), "ux0:data/prince/%s/%s/%s", mods_folder, levelset_name, image_filename);
+				if (!skip_mod_data_files) {
+					char image_filename_mod[POP_MAX_PATH];
+					// before checking data/, first try mods/MODNAME/data/
+#ifdef __vita__
+					snprintf(image_filename_mod, sizeof(image_filename_mod), "ux0:data/prince/%s/%s", mod_data_path, image_filename);
 #else
-				snprintf(image_filename_mod, sizeof(image_filename_mod), "%s/%s/%s", mods_folder, levelset_name, image_filename);
+					snprintf(image_filename_mod, sizeof(image_filename_mod), "%s/%s", mod_data_path, image_filename);
 #endif
-				//printf("loading (binary) %s",image_filename_mod);
-				fp = fopen(locate_file(image_filename_mod), "rb");
-				if (fp == NULL) {
+
+					//printf("loading (binary) %s",image_filename_mod);
+					fp = fopen(locate_file(image_filename_mod), "rb");
+				}
+				if (fp == NULL && !skip_normal_data_files) {
 					fp = fopen(locate_file(image_filename), "rb");
 				}
 			}
@@ -2861,7 +2879,7 @@ void __pascal start_timer(int timer_index, int length) {
 }
 
 void toggle_fullscreen() {
-#ifdef VITA
+#ifdef __vita__
 	start_fullscreen = !start_fullscreen;
 #else
 	uint32_t flags = SDL_GetWindowFlags(window_);
@@ -2933,6 +2951,8 @@ void process_events() {
 						case SDL_SCANCODE_NUMLOCKCLEAR:
 						case SDL_SCANCODE_APPLICATION:
 						case SDL_SCANCODE_PRINTSCREEN:
+						case SDL_SCANCODE_VOLUMEUP:
+						case SDL_SCANCODE_VOLUMEDOWN:
 						case SDL_SCANCODE_PAUSE:
 							break;
 						default:
@@ -3039,37 +3059,37 @@ void process_events() {
 				}
 				break;
 			case SDL_JOYBUTTONDOWN:
-#ifdef VITA
+#ifdef __vita__
 				switch (event.jbutton.button)
 				{
-					case VITA_BTN_LEFT:     joy_hat_states[0] = -1; break;
-					case VITA_BTN_RIGHT:    joy_hat_states[0] = 1; break;
-					case VITA_BTN_UP:       joy_hat_states[1] = -1; break;
-					case VITA_BTN_DOWN:     joy_hat_states[1] = 1; break;
-					case VITA_BTN_CROSS:    if (!is_menu_shown) { joy_X_button_state = 1; last_key_scancode = 1; } else { last_key_scancode = SDL_SCANCODE_RETURN; } break;
-					case VITA_BTN_CIRCLE:   if (!is_menu_shown) { joy_hat_states[1] = -1; } else { last_key_scancode = SDL_SCANCODE_BACKSPACE; } break;
-					case VITA_BTN_TRIANGLE: is_show_time = 1; break;
-					case VITA_BTN_LTRIGGER: last_key_scancode = SDL_SCANCODE_F9; break;
-					case VITA_BTN_RTRIGGER: last_key_scancode = SDL_SCANCODE_F6; break;
-					case VITA_BTN_START:    last_key_scancode = SDL_SCANCODE_ESCAPE; break;
-					case VITA_BTN_SELECT:   toggle_fullscreen(); break;
+					case BTN_LEFT:     joy_hat_states[0] = -1; break;
+					case BTN_RIGHT:    joy_hat_states[0] = 1; break;
+					case BTN_UP:       joy_hat_states[1] = -1; break;
+					case BTN_DOWN:     joy_hat_states[1] = 1; break;
+					case BTN_CROSS:    if (!is_menu_shown) { joy_X_button_state = 1; last_key_scancode = 1; } else { last_key_scancode = SDL_SCANCODE_RETURN; } break;
+					case BTN_CIRCLE:   if (!is_menu_shown) { joy_hat_states[1] = -1; } else { last_key_scancode = SDL_SCANCODE_BACKSPACE; } break;
+					case BTN_TRIANGLE: is_show_time = 1; break;
+					case BTN_LTRIGGER: last_key_scancode = SDL_SCANCODE_F9; break;
+					case BTN_RTRIGGER: last_key_scancode = SDL_SCANCODE_F6; break;
+					case BTN_START:    last_key_scancode = SDL_SCANCODE_ESCAPE; break;
+					case BTN_SELECT:   toggle_fullscreen(); break;
 				}
 				break;
 #endif
 			case SDL_JOYBUTTONUP:
-#ifdef VITA
+#ifdef __vita__
 				switch (event.jbutton.button)
 				{
-					case VITA_BTN_LEFT:   joy_hat_states[0] = 0; break;
-					case VITA_BTN_RIGHT:  joy_hat_states[0] = 0; break;
-					case VITA_BTN_UP:     joy_hat_states[1] = 0; break;
-					case VITA_BTN_DOWN:   joy_hat_states[1] = 0; break;
-					case VITA_BTN_CROSS:  if (!is_menu_shown) { joy_X_button_state = 0; } break;
-					case VITA_BTN_CIRCLE: if (!is_menu_shown) { joy_hat_states[1] = 0; } break;
+					case BTN_LEFT:   joy_hat_states[0] = 0; break;
+					case BTN_RIGHT:  joy_hat_states[0] = 0; break;
+					case BTN_UP:     joy_hat_states[1] = 0; break;
+					case BTN_DOWN:   joy_hat_states[1] = 0; break;
+					case BTN_CROSS:  if (!is_menu_shown) { joy_X_button_state = 0; } break;
+					case BTN_CIRCLE: if (!is_menu_shown) { joy_hat_states[1] = 0; } break;
 				}
 				break;
 #endif
-#ifndef VITA
+#ifndef __vita__
 			case SDL_JOYAXISMOTION:
 				// Only handle the event if the joystick is incompatible with the SDL_GameController interface.
 				// (Otherwise it will interfere with the normal action of the SDL_GameController API.)
@@ -3145,9 +3165,7 @@ void process_events() {
 #endif
 				} else if (event.user.code == userevent_SOUND) {
 					//sound_timer = 0;
-#ifndef USE_MIXER
 					//stop_sounds();
-#endif
 				}
 				break;
 #ifdef USE_MENU
@@ -3299,7 +3317,7 @@ void __pascal far set_bg_attr(int vga_pal_index,int hc_pal_index) {
 			flip_screen(offscreen_surface);
 		}
 		// And show it!
-		update_screen();
+//		update_screen();
 		// Give some time to show the flash.
 		//SDL_Flip(onscreen_surface_);
 //		if (hc_pal_index != 0) SDL_Delay(2*(1000/60));

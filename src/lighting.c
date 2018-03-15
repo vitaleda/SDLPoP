@@ -25,8 +25,8 @@ The authors of this program may be contacted at http://forum.princed.org
 image_type* screen_overlay = NULL;
 Uint32 bgcolor;
 
-#ifdef VITA
-const char mask_filename[] = "ux0:data/prince/data/light.png";
+#ifdef __vita__
+const char mask_filename[] = "ux0:data/prince/light.png";
 #else
 const char mask_filename[] = "data/light.png";
 #endif

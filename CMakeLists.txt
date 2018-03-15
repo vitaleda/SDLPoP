@@ -18,7 +18,7 @@ project(${VITA_APPNAME})
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
 # Flags and includes
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVITA -fno-exceptions")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/vitashaderlibs/vita2d_fbo/includes/
@@ -34,9 +34,11 @@ link_directories(
 # Builds
 add_executable(${VITA_APPNAME}
   src/data.c
+  src/lighting.c
   src/main.c
   src/menu.c
-  src/lighting.c
+  src/midi.c
+  src/opl3.c
   src/options.c
   src/replay.c
   src/seg000.c
@@ -55,11 +57,7 @@ add_executable(${VITA_APPNAME}
 
 target_link_libraries(${VITA_APPNAME}
   SDL2_image
-  SDL2_mixer
   SDL2
-  vorbisfile
-  vorbis
-  ogg
   jpeg
   png
   kbdvita
@@ -79,7 +77,7 @@ target_link_libraries(${VITA_APPNAME}
 )
 
 # Create Vita artifacts
-vita_create_self(eboot.bin ${VITA_APPNAME} SAFE)
+vita_create_self(eboot.bin ${VITA_APPNAME} UNSAFE)
 vita_create_vpk(${VITA_APPNAME}.vpk ${VITA_TITLEID} eboot.bin
   VERSION ${VITA_VERSION}
   NAME ${VITA_APPNAME}

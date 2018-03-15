@@ -53,9 +53,6 @@ The authors of this program may be contacted at http://forum.princed.org
 // Disabled, because it introduces some timing bugs.
 //#define USE_COMPAT_TIMER
 
-// Use mixer and enable music.
-#define USE_MIXER
-
 // Enable quicksave/load feature.
 #define USE_QUICKSAVE
 
@@ -193,6 +190,9 @@ The authors of this program may be contacted at http://forum.princed.org
 // After uniting with the shadow in level 12, the hidden floors will not appear until after the flashing stops.
 #define FIX_HIDDEN_FLOORS_DURING_FLASHING
 
+// By jumping towards one of the bottom corners of the room and grabbing a ledge, you can teleport to the room above.
+#define FIX_HANG_ON_TELEPORT
+
 
 // Debug features:
 
@@ -214,7 +214,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #define USE_LIGHTING
 
 // Enable screenshot features.
-#ifndef VITA
+#ifndef __vita__
 #define USE_SCREENSHOT
 #endif
 
@@ -226,19 +226,19 @@ The authors of this program may be contacted at http://forum.princed.org
 #define USE_MENU
 
 // Default SDL_Joystick button values
-#ifdef VITA
-#define VITA_BTN_TRIANGLE 0
-#define VITA_BTN_CIRCLE 1
-#define VITA_BTN_CROSS 2
-#define VITA_BTN_SQUARE 3
-#define VITA_BTN_LTRIGGER 4
-#define VITA_BTN_RTRIGGER 5
-#define VITA_BTN_DOWN 6
-#define VITA_BTN_LEFT 7
-#define VITA_BTN_UP 8
-#define VITA_BTN_RIGHT 9
-#define VITA_BTN_SELECT 10
-#define VITA_BTN_START 11
+#ifdef __vita__
+#define BTN_TRIANGLE 0
+#define BTN_CIRCLE 1
+#define BTN_CROSS 2
+#define BTN_SQUARE 3
+#define BTN_LTRIGGER 4
+#define BTN_RTRIGGER 5
+#define BTN_DOWN 6
+#define BTN_LEFT 7
+#define BTN_UP 8
+#define BTN_RIGHT 9
+#define BTN_SELECT 10
+#define BTN_START 11
 #else
 #define SDL_JOYSTICK_BUTTON_Y 2
 #define SDL_JOYSTICK_BUTTON_X 3
