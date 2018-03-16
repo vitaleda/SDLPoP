@@ -26,7 +26,7 @@ image_type* screen_overlay = NULL;
 Uint32 bgcolor;
 
 #ifdef __vita__
-const char mask_filename[] = "ux0:data/prince/light.png";
+const char mask_filename[] = "ux0:data/prince/data/light.png";
 #else
 const char mask_filename[] = "data/light.png";
 #endif

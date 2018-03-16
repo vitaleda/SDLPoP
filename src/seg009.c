@@ -1785,7 +1785,7 @@ char** sound_names = NULL;
 
 void load_sound_names() {
 #ifdef __vita__
-	const char* names_path = locate_file("ux0:data/prince/music/names.txt");
+	const char* names_path = locate_file("ux0:data/prince/data/music/names.txt");
 #else
 	const char* names_path = locate_file("data/music/names.txt");
 #endif
@@ -1849,7 +1849,7 @@ sound_buffer_type* load_sound(int index) {
 				}
 				if (fp == NULL && !skip_normal_data_files) {
 #ifdef __vita__
-					snprintf(filename, sizeof(filename), "ux0:data/prince/music/%s.ogg", sound_name(index));
+					snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.ogg", sound_name(index));
 #else
 					snprintf(filename, sizeof(filename), "data/music/%s.ogg", sound_name(index));
 #endif
@@ -2447,7 +2447,7 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 				filename_no_ext[len-4] = '\0'; // terminate, so ".DAT" is deleted from the filename
 			}
 #ifdef __vita__
-			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/%s/res%d.%s", filename_no_ext, resource_id, extension);
+			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s", filename_no_ext, resource_id, extension);
 #else
 			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",filename_no_ext, resource_id, extension);
 #endif
