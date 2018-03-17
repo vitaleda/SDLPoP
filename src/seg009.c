@@ -1827,12 +1827,6 @@ sound_buffer_type* load_sound(int index) {
 			do {
 				FILE* fp = NULL;
 				char filename[POP_MAX_PATH];
-/*				struct stat info;
-				stat(located_filename, &info);
-				FILE* f = fopen(located_filename, "rb");
-				char* mem = (char*)malloc(info.st_size);
-				fread(mem, 1, info.st_size, f);
-				Mix_Music* music = Mix_LoadMUS_RW(SDL_RWFromMem(mem, info.st_size), info.st_size);*/
 				if (!skip_mod_data_files) {
 					// before checking the root directory, first try mods/MODNAME/
 #ifdef __vita__
