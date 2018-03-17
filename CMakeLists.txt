@@ -18,7 +18,7 @@ project(${VITA_APPNAME})
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
 # Flags and includes
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/vitashaderlibs/vita2d_fbo/includes/
