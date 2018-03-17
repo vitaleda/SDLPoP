@@ -19,24 +19,20 @@ The authors of this program may be contacted at http://forum.princed.org
 */
 
 #include "common.h"
+#include "lighting.h"
 
 #ifdef USE_LIGHTING
 
 image_type* screen_overlay = NULL;
 Uint32 bgcolor;
 
-#ifdef __vita__
-const char mask_filename[] = "ux0:data/prince/data/light.png";
-#else
-const char mask_filename[] = "data/light.png";
-#endif
 const Uint8 ambient_level = 128;
 
 // Called once at startup.
 void init_lighting() {
 	if (!enable_lighting) return;
 
-	lighting_mask = IMG_Load(mask_filename);
+	lighting_mask = IMG_Load_RW(SDL_RWFromConstMem(mask_img, mask_img_length), mask_img_length);
 	if (lighting_mask == NULL) {
 		sdlperror("IMG_Load (lighting_mask)");
 		enable_lighting = 0;
