@@ -192,11 +192,6 @@ int __pascal far pop_wait(int timer_index,int time) {
 	return do_wait(timer_index);
 }
 
-// S_ISREG may not be defined under MSVC
-#if defined(_MSC_VER) && !defined(S_ISREG)
-#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)
-#endif
-
 static FILE* open_dat_from_root_or_data_dir(const char* filename) {
 	FILE* fp = NULL;
 #ifdef __vita__
@@ -2153,7 +2148,9 @@ void init_scaling() {
 
 // seg009:38ED
 void __pascal far set_gr_mode(byte grmode) {
+#ifdef SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING
 	SDL_SetHint(SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
+#endif
 #ifdef __vita__
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
 				SDL_INIT_GAMECONTROLLER ) != 0) {
@@ -2894,6 +2891,8 @@ void toggle_fullscreen() {
 #endif
 }
 
+bool ignore_tab = false;
+
 void process_events() {
 	// Process all events in the queue.
 	// Previously, this procedure would wait for *one* event and process it, then return.
@@ -2955,7 +2954,11 @@ void process_events() {
 						case SDL_SCANCODE_VOLUMEDOWN:
 						case SDL_SCANCODE_PAUSE:
 							break;
+
 						default:
+							// If Alt is held down from Alt+Tab: ignore it until it's released.
+							if (scancode == SDL_SCANCODE_TAB && ignore_tab) break;
+
 							last_key_scancode = scancode;
 							if (modifier & KMOD_SHIFT) last_key_scancode |= WITH_SHIFT;
 							if (modifier & KMOD_CTRL ) last_key_scancode |= WITH_CTRL ;
@@ -2991,6 +2994,9 @@ void process_events() {
 				break;
 			}
 			case SDL_KEYUP:
+				// If Alt was held down from Alt+Tab but now it's released: stop ignoring Tab.
+				if (event.key.keysym.scancode == SDL_SCANCODE_TAB && ignore_tab) ignore_tab = false;
+
 				key_states[event.key.keysym.scancode] = 0;
 #ifdef USE_MENU
 				// Prevent repeated keystrokes opening/closing the menu as long as the key is held down.
@@ -3153,6 +3159,14 @@ void process_events() {
 						window_resized();
 						update_screen();
 						break;
+
+					case SDL_WINDOWEVENT_FOCUS_GAINED:
+					// Fix for this bug: When playing back a recording, Alt+Tabbing back to SDLPoP stops the replay if Alt is released before Tab.
+					{ // If Alt is held down from Alt+Tab: ignore it until it's released.
+						const Uint8 *state = SDL_GetKeyboardState(NULL);
+						if (state[SDL_SCANCODE_TAB]) ignore_tab = true;
+					}
+					break;
 				}
 				break;
 			case SDL_USEREVENT:
