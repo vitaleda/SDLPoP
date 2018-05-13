@@ -163,7 +163,9 @@ void __pascal far init_game_main() {
 	load_all_sounds();
 
 	hof_read();
+#ifndef __SWITCH__
 	show_splash(); // added
+#endif
 	start_game();
 }
 

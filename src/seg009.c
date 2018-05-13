@@ -29,6 +29,29 @@ The authors of this program may be contacted at http://forum.princed.org
 #include "dirent.h"
 #endif
 
+#ifdef __SWITCH__
+#define BTN_A      0
+#define BTN_B      1
+#define BTN_X      2
+#define BTN_Y      3
+#define BTN_PLUS  10
+#define BTN_MINUS 11
+#define BTN_UP    13
+#define BTN_DOWN  15
+#define BTN_LEFT  12
+#define BTN_RIGHT 14
+
+int access(const char *pathname, int mode)
+{
+	struct stat st;
+
+	if (stat(pathname, &st) < 0)
+		return -1;
+
+	return 0;
+}
+#endif
+
 // Most functions in this file are different from those in the original game.
 
 void sdlperror(const char* header) {
@@ -796,6 +819,7 @@ int __pascal far set_joy_mode() {
 	if (SDL_NumJoysticks() < 1) {
 		is_joyst_mode = 0;
 	} else {
+#ifndef __SWITCH__
 		if (SDL_IsGameController(0)) {
 			sdl_controller_ = SDL_GameControllerOpen(0);
 			if (sdl_controller_ == NULL) {
@@ -807,10 +831,13 @@ int __pascal far set_joy_mode() {
 		// We have a joystick connected, but it's NOT compatible with the SDL_GameController
 		// interface, so we resort to the classic SDL_Joystick interface instead
 		else {
+#endif
 			sdl_joystick_ = SDL_JoystickOpen(0);
 			is_joyst_mode = 1;
 			using_sdl_joystick_interface = 1;
+#ifndef __SWITCH__
 		}
+#endif
 	}
 	if (enable_controller_rumble && is_joyst_mode) {
 		sdl_haptic = SDL_HapticOpen(0);
@@ -1689,7 +1716,11 @@ size_t digi_remaining_length = 0;
 // The properties of the audio device.
 SDL_AudioSpec* digi_audiospec = NULL;
 // The desired samplerate. Everything will be resampled to this.
+#ifdef __SWITCH__
+const int digi_samplerate = 48000;
+#else
 const int digi_samplerate = 44100;
+#endif
 
 void stop_digi() {
 //	SDL_PauseAudio(1);
@@ -2247,8 +2278,12 @@ void __pascal far set_gr_mode(byte grmode) {
 #ifdef SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING
 	SDL_SetHint(SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
 #endif
+#ifdef __SWITCH__
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK) != 0) {
+#else
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
 	             SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC ) != 0) {
+#endif
 		sdlperror("SDL_Init");
 		quit(1);
 	}
@@ -2273,7 +2308,11 @@ void __pascal far set_gr_mode(byte grmode) {
 	                           pop_window_width, pop_window_height, flags);
 	// Make absolutely sure that VSync will be off, to prevent timer issues.
 	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+#ifdef __SWITCH__
+	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_SOFTWARE);
+#else
 	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+#endif
 	SDL_RendererInfo renderer_info;
 	if (SDL_GetRendererInfo(renderer_, &renderer_info) == 0) {
 		if (renderer_info.flags & SDL_RENDERER_TARGETTEXTURE) {
@@ -3114,8 +3153,37 @@ void process_events() {
 				}
 				break;
 			case SDL_JOYBUTTONDOWN:
+#ifdef __SWITCH__
+				switch (event.jbutton.button)
+				{
+					case BTN_LEFT:   joy_hat_states[0] = -1; break;
+					case BTN_RIGHT:  joy_hat_states[0] = 1; break;
+					case BTN_UP:     joy_hat_states[1] = -1; break;
+					case BTN_DOWN:   joy_hat_states[1] = 1; break;
+					case BTN_A:      if (!is_menu_shown) { joy_X_button_state = 1; last_key_scancode = 1; } else { last_key_scancode = SDL_SCANCODE_RETURN; } break;
+					case BTN_B:      if (!is_menu_shown) { joy_hat_states[1] = -1; } else { last_key_scancode = SDL_SCANCODE_BACKSPACE; } break;
+					case BTN_X:      is_show_time = 1; break;
+					case BTN_MINUS:  last_key_scancode = SDL_SCANCODE_F9; break;
+					case BTN_PLUS:   last_key_scancode = SDL_SCANCODE_F6; break;
+					case BTN_Y:      last_key_scancode = SDL_SCANCODE_ESCAPE; break;
+				}
+				break;
+#endif
 			case SDL_JOYBUTTONUP:
+#ifdef __SWITCH__
+				switch (event.jbutton.button)
+				{
+					case BTN_LEFT:   joy_hat_states[0] = 0; break;
+					case BTN_RIGHT:  joy_hat_states[0] = 0; break;
+					case BTN_UP:     joy_hat_states[1] = 0; break;
+					case BTN_DOWN:   joy_hat_states[1] = 0; break;
+					case BTN_A:      if (!is_menu_shown) { joy_X_button_state = 0; } break;
+					case BTN_B:      if (!is_menu_shown) { joy_hat_states[1] = 0; } break;
+				}
+				break;
+#endif
 			case SDL_JOYAXISMOTION:
+#ifndef __SWITCH__
 				// Only handle the event if the joystick is incompatible with the SDL_GameController interface.
 				// (Otherwise it will interfere with the normal action of the SDL_GameController API.)
 				if (!using_sdl_joystick_interface) {
@@ -3149,6 +3217,7 @@ void process_events() {
 					if      (event.jbutton.button == SDL_JOYSTICK_BUTTON_Y)   joy_AY_buttons_state = 0;  // Y (up)
 					else if (event.jbutton.button == SDL_JOYSTICK_BUTTON_X)   joy_X_button_state = 0;    // X (shift)
 				}
+#endif
 				break;
 
 			case SDL_TEXTINPUT:
