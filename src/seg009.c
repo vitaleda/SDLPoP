@@ -34,12 +34,13 @@ The authors of this program may be contacted at http://forum.princed.org
 #define BTN_B      1
 #define BTN_X      2
 #define BTN_Y      3
+#define BTN_L      6
+#define BTN_R      7
 #define BTN_PLUS  10
-#define BTN_MINUS 11
-#define BTN_UP    13
-#define BTN_DOWN  15
 #define BTN_LEFT  12
+#define BTN_UP    13
 #define BTN_RIGHT 14
+#define BTN_DOWN  15
 
 int access(const char *pathname, int mode)
 {
@@ -3163,9 +3164,10 @@ void process_events() {
 					case BTN_A:      if (!is_menu_shown) { joy_X_button_state = 1; last_key_scancode = 1; } else { last_key_scancode = SDL_SCANCODE_RETURN; } break;
 					case BTN_B:      if (!is_menu_shown) { joy_hat_states[1] = -1; } else { last_key_scancode = SDL_SCANCODE_BACKSPACE; } break;
 					case BTN_X:      is_show_time = 1; break;
-					case BTN_MINUS:  last_key_scancode = SDL_SCANCODE_F9; break;
-					case BTN_PLUS:   last_key_scancode = SDL_SCANCODE_F6; break;
-					case BTN_Y:      last_key_scancode = SDL_SCANCODE_ESCAPE; break;
+					case BTN_Y:      if (!is_menu_shown) { joy_hat_states[1] = 1; } break;
+					case BTN_L:      last_key_scancode = SDL_SCANCODE_F9; break;
+					case BTN_R:      last_key_scancode = SDL_SCANCODE_F6; break;
+					case BTN_PLUS:   last_key_scancode = SDL_SCANCODE_ESCAPE; break;
 				}
 				break;
 #endif
@@ -3179,6 +3181,7 @@ void process_events() {
 					case BTN_DOWN:   joy_hat_states[1] = 0; break;
 					case BTN_A:      if (!is_menu_shown) { joy_X_button_state = 0; } break;
 					case BTN_B:      if (!is_menu_shown) { joy_hat_states[1] = 0; } break;
+					case BTN_Y:      if (!is_menu_shown) { joy_hat_states[1] = 0; } break;
 				}
 				break;
 #endif
