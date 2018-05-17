@@ -1263,7 +1263,6 @@ void get_joystick_state_hor_only(int raw_x, int axis_state[2]) {
 // seg000:1051
 void __pascal far read_joyst_control() {
 
-#ifndef __SWITCH__
 	if (joystick_only_horizontal) {
 		get_joystick_state_hor_only(joy_axis[SDL_CONTROLLER_AXIS_LEFTX], joy_left_stick_states);
 		get_joystick_state_hor_only(joy_axis[SDL_CONTROLLER_AXIS_RIGHTX], joy_right_stick_states);
@@ -1271,7 +1270,6 @@ void __pascal far read_joyst_control() {
 		get_joystick_state(joy_axis[SDL_CONTROLLER_AXIS_LEFTX], joy_axis[SDL_CONTROLLER_AXIS_LEFTY], joy_left_stick_states);
 		get_joystick_state(joy_axis[SDL_CONTROLLER_AXIS_RIGHTX], joy_axis[SDL_CONTROLLER_AXIS_RIGHTY], joy_right_stick_states);
 	}
-#endif
 
 	if (joy_left_stick_states[0] == -1 || joy_right_stick_states[0] == -1 || joy_hat_states[0] == -1)
 		control_x = -1;

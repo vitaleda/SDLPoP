@@ -3183,7 +3183,6 @@ void process_events() {
 				break;
 #endif
 			case SDL_JOYAXISMOTION:
-#ifndef __SWITCH__
 				// Only handle the event if the joystick is incompatible with the SDL_GameController interface.
 				// (Otherwise it will interfere with the normal action of the SDL_GameController API.)
 				if (!using_sdl_joystick_interface) {
@@ -3217,7 +3216,6 @@ void process_events() {
 					if      (event.jbutton.button == SDL_JOYSTICK_BUTTON_Y)   joy_AY_buttons_state = 0;  // Y (up)
 					else if (event.jbutton.button == SDL_JOYSTICK_BUTTON_X)   joy_X_button_state = 0;    // X (shift)
 				}
-#endif
 				break;
 
 			case SDL_TEXTINPUT:
