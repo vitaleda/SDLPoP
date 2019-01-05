@@ -22,6 +22,10 @@ The authors of this program may be contacted at http://forum.princed.org
 #include <setjmp.h>
 #include <math.h>
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 // data:461E
 dat_type * dathandle;
 
@@ -30,6 +34,10 @@ word need_redraw_because_flipped;
 
 // seg000:0000
 void far pop_main() {
+#ifdef NXLINK
+	socketInitializeDefault();
+	nxlinkStdio();
+#endif
 	if (check_param("--version") || check_param("-v")) {
 		printf ("SDLPoP v%s\n", SDLPOP_VERSION);
 		exit(0);

@@ -21,16 +21,30 @@ add_executable(${CMAKE_PROJECT_NAME}.elf
 target_link_libraries(${CMAKE_PROJECT_NAME}.elf
   SDL2_image
   SDL2
+  EGL
+  glapi
+  drm_nouveau
   jpeg
   png
   z
   nx
   m
+  stdc++
  -specs=${DEVKITPRO}/libnx/switch.specs
 )
 
 add_custom_target(${CMAKE_PROJECT_NAME}.nro
   DEPENDS ${CMAKE_PROJECT_NAME}.elf
-  COMMAND nacptool --create "${CMAKE_PROJECT_NAME}" "usineur" "1.0" ${CMAKE_PROJECT_NAME}.nacp
+  COMMAND nacptool --create "${CMAKE_PROJECT_NAME}" "usineur" "1.1" ${CMAKE_PROJECT_NAME}.nacp
   COMMAND elf2nro ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.nro --icon=${CMAKE_SOURCE_DIR}/res/icon.jpg --nacp=${CMAKE_PROJECT_NAME}.nacp
+)
+
+add_custom_target(send
+  COMMAND curl -T ${CMAKE_PROJECT_NAME}.nro ftp://$(SWITCHIP):5000/switch/${CMAKE_PROJECT_NAME}/
+  DEPENDS ${CMAKE_PROJECT_NAME}.nro
+)
+
+add_custom_target(nxlink
+  COMMAND nxlink -a $(SWITCHIP) ${CMAKE_PROJECT_NAME}.nro -s -p ${CMAKE_PROJECT_NAME}/${CMAKE_PROJECT_NAME}.nro
+  DEPENDS ${CMAKE_PROJECT_NAME}.nro
 )

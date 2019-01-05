@@ -41,16 +41,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #define BTN_UP    13
 #define BTN_RIGHT 14
 #define BTN_DOWN  15
-
-int access(const char *pathname, int mode)
-{
-	struct stat st;
-
-	if (stat(pathname, &st) < 0)
-		return -1;
-
-	return 0;
-}
+#include <switch.h>
 #endif
 
 // Most functions in this file are different from those in the original game.
@@ -279,6 +270,9 @@ void __pascal far restore_stuff() {
 
 // seg009:0E33
 int __pascal far key_test_quit() {
+#ifdef NXLINK
+	socketExit();
+#endif
 	word key;
 	key = read_key();
 	if (key == (SDL_SCANCODE_Q | WITH_CTRL)) { // ctrl-q
@@ -1482,6 +1476,13 @@ void __pascal far draw_text_cursor(int xpos,int ypos,int color) {
 
 // seg009:053C
 int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length,const char *initial,int has_initial,int arg_4,int color,int bgcolor) {
+#ifdef __SWITCH__
+	SwkbdConfig kbd;
+	swkbdCreate(&kbd, 0);
+	swkbdConfigMakePresetDefault(&kbd);
+	swkbdShow(&kbd, buffer, max_length);
+	return strlen(buffer);
+#endif
 	short length;
 	word key;
 	short cursor_visible;
@@ -2279,19 +2280,19 @@ void __pascal far set_gr_mode(byte grmode) {
 #ifdef SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING
 	SDL_SetHint(SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
 #endif
-#ifdef __SWITCH__
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK) != 0) {
-#else
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
 	             SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC ) != 0) {
-#endif
 		sdlperror("SDL_Init");
 		quit(1);
 	}
 
 	//SDL_EnableUNICODE(1); //deprecated
 	Uint32 flags = 0;
+#ifdef __SWITCH__
+	start_fullscreen = 1;
+#else
 	if (!start_fullscreen) start_fullscreen = check_param("full") != NULL;
+#endif
 	if (start_fullscreen) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	flags |= SDL_WINDOW_RESIZABLE;
 	flags |= SDL_WINDOW_ALLOW_HIGHDPI; // for Retina displays
@@ -2309,11 +2310,7 @@ void __pascal far set_gr_mode(byte grmode) {
 	                           pop_window_width, pop_window_height, flags);
 	// Make absolutely sure that VSync will be off, to prevent timer issues.
 	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
-#ifdef __SWITCH__
-	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_SOFTWARE);
-#else
 	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
-#endif
 	SDL_RendererInfo renderer_info;
 	if (SDL_GetRendererInfo(renderer_, &renderer_info) == 0) {
 		if (renderer_info.flags & SDL_RENDERER_TARGETTEXTURE) {
