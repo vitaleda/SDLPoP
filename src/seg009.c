@@ -36,6 +36,8 @@ The authors of this program may be contacted at http://forum.princed.org
 #define BTN_Y      3
 #define BTN_L      6
 #define BTN_R      7
+#define BTN_ZL     8
+#define BTN_ZR     9
 #define BTN_PLUS  10
 #define BTN_LEFT  12
 #define BTN_UP    13
@@ -3162,8 +3164,35 @@ void process_events() {
 					case BTN_B:      if (!is_menu_shown) { joy_hat_states[1] = -1; } else { last_key_scancode = SDL_SCANCODE_BACKSPACE; } break;
 					case BTN_X:      is_show_time = 1; break;
 					case BTN_Y:      if (!is_menu_shown) { joy_hat_states[1] = 1; } break;
-					case BTN_L:      last_key_scancode = SDL_SCANCODE_F9; break;
-					case BTN_R:      last_key_scancode = SDL_SCANCODE_F6; break;
+					case BTN_L:      if (!is_menu_shown) { last_key_scancode = SDL_SCANCODE_F9; } break;
+					case BTN_R:      if (!is_menu_shown) { last_key_scancode = SDL_SCANCODE_F6; } break;
+					case BTN_ZL:
+						if (!is_menu_shown && cheats_enabled) {
+							if (rem_min > 1) --rem_min;
+#ifdef ALLOW_INFINITE_TIME
+							else if (rem_min < -1) ++rem_min; // if negative/infinite, time runs 'forward'
+							else if (rem_min == -1) rem_tick = 720; // resets the timer to 00:00:00
+#endif
+							text_time_total = 0;
+							text_time_remaining = 0;
+							is_show_time = 1;
+						}
+						break;
+					case BTN_ZR:
+						if (!is_menu_shown && cheats_enabled) {
+#ifdef ALLOW_INFINITE_TIME
+							if (rem_min < 0) { // if negative/infinite, time runs 'forward'
+								if (rem_min > INT16_MIN) --rem_min;
+							}
+							else ++rem_min;
+#else
+							++rem_min;
+#endif
+							text_time_total = 0;
+							text_time_remaining = 0;
+							is_show_time = 1;
+						}
+						break;
 					case BTN_PLUS:   last_key_scancode = SDL_SCANCODE_ESCAPE; break;
 				}
 				break;

@@ -132,7 +132,7 @@ endif()
 if(SWITCH_LIBNX)
     add_custom_target(${CMAKE_PROJECT_NAME}.nro
         DEPENDS prince
-        COMMAND nacptool --create "${CMAKE_PROJECT_NAME}" "usineur" "1.1" ${CMAKE_PROJECT_NAME}.nacp
+        COMMAND nacptool --create "${CMAKE_PROJECT_NAME}" "usineur" "1.2" ${CMAKE_PROJECT_NAME}.nacp
         COMMAND elf2nro ${CMAKE_SOURCE_DIR}/../prince ${CMAKE_PROJECT_NAME}.nro --icon=${CMAKE_SOURCE_DIR}/../res/icon.jpg --nacp=${CMAKE_PROJECT_NAME}.nacp
     )
 
