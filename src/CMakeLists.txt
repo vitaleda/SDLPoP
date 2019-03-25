@@ -53,7 +53,7 @@ endif()
 
 if (SWITCH_LIBNX)
     set(CMAKE_C_FLAGS "-O2 -march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ffast-math -ffunction-sections -fdata-sections")
-    include_directories(/opt/devkitpro/libnx/include /opt/devkitpro/portlibs/switch/include)
+    include_directories($ENV{DEVKITPRO}/libnx/include $ENV{DEVKITPRO}/portlibs/switch/include)
     add_definitions(-D__SWITCH__)
 endif (SWITCH_LIBNX)
 
