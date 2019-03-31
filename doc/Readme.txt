@@ -107,6 +107,7 @@ A:
 * --screenshot-level -- Similar to the above, except the whole level is screenshotted, thus creating a level map.
 * --screenshot-level-extras -- Similar to the above, except lots of additional info is displayed on the picture.
 	You can find the meaning of each symbol in Map_Symbols.txt.
+* stdsnd -- Use PC speaker sounds.
 
 Q: What keys can I use?
 A:
@@ -219,7 +220,7 @@ This is useful if you want to compare the behavior of this port and the original
 /!\ Note that as of 1.03, the data/font folder and its contents must exist in the current directory!
 	Since 1.11, the data/font folder is no longer required.
 
-Since version [upcoming], SDLPoP can recognize most changes made with CusPoP in a DOS mod's PRINCE.EXE.
+Since version 1.19, SDLPoP can recognize most changes made with CusPoP in a DOS mod's PRINCE.EXE.
 Since version 1.16, you can configure some options in SDLPoP.ini: starting time, level types, etc.
 In addition, since version 1.17, mods in the "mods/" folder can use a custom configuration file "mod.ini".
 Options in this file can override (most of) the gameplay-related options in SDLPoP.ini.
@@ -239,7 +240,7 @@ Description and download: http://forum.princed.org/viewtopic.php?f=73&t=3664
 	Alternate link: https://www.popot.org/custom_levels.php?mod=0000153
 
 Since version 1.16, there is support for fake tiles, for example walls that the prince can go through.
-The Apoplexy level editor supports these additional tiles since v3.0: https://www.popot.org/level_editors.php?editor=apoplexy
+The Apoplexy level editor supports these additional tiles since v3.0: https://www.apoplexy.org/
 (Just don't overuse them, please!)
 
 REPLAYS

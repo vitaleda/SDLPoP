@@ -1,6 +1,6 @@
 /*
 SDLPoP, a port/conversion of the DOS game Prince of Persia.
-Copyright (C) 2013-2018  Dávid Nagy
+Copyright (C) 2013-2019  Dávid Nagy
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -389,7 +389,11 @@ void __pascal far up_pressed() {
 	else if (get_tile_infrontof_char() == tiles_16_level_door_left) leveldoor_tilepos = curr_tilepos;
 	if ((leveldoor_tilepos != -1) &&
 		level.start_room != drawn_room &&
-		curr_room_modif[leveldoor_tilepos] >= 42 // this door must be fully open
+		(
+			fixes->fix_exit_door
+			? curr_room_modif[leveldoor_tilepos] >= 42 // this door must be fully open
+			: leveldoor_open
+		)
 	){
 		go_up_leveldoor();
 	} else {

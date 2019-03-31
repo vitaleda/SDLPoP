@@ -1,6 +1,6 @@
 /*
 SDLPoP, a port/conversion of the DOS game Prince of Persia.
-Copyright (C) 2013-2018  Dávid Nagy
+Copyright (C) 2013-2019  Dávid Nagy
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -936,6 +936,16 @@ void __pascal far anim_tile_modif() {
 			break;
 			case tiles_22_sword:
 				start_anim_sword(drawn_room, tilepos);
+			break;
+		}
+	}
+
+	// Animate torches in the rightmost column of the left-side room as well, because they are visible in the current room.
+	for (int row = 0; row <= 2; row++) {
+		switch (get_tile(room_L, 9, row)) {
+			case tiles_19_torch:
+			case tiles_30_torch_with_debris:
+				start_anim_torch(room_L, row * 10 + 9);
 			break;
 		}
 	}
@@ -1926,8 +1936,14 @@ void __pascal far clear_screen_and_sounds() {
 // seg000:1F7B
 void __pascal far parse_cmdline_sound() {
 	// stub
-	sound_flags |= sfDigi;
-	sound_flags |= sfMidi;
+	if (check_param("stdsnd")) {
+		// Use PC Speaker sounds and music.
+	} else {
+		// Use digi (wave) sounds and MIDI music.
+		sound_flags |= sfDigi;
+		sound_flags |= sfMidi;
+		sound_mode = smSblast;
+	}
 }
 
 // seg000:226D

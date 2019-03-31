@@ -1,6 +1,6 @@
 /*
 SDLPoP, a port/conversion of the DOS game Prince of Persia.
-Copyright (C) 2013-2018  Dávid Nagy
+Copyright (C) 2013-2019  Dávid Nagy
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -457,9 +457,9 @@ void __pascal far draw_tile_base();
 void __pascal far draw_tile_anim();
 void __pascal far draw_tile_fore();
 int __pascal far get_loose_frame(byte modifier);
-int __pascal far add_backtable(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, byte blit, byte peel);
-int __pascal far add_foretable(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, byte blit, byte peel);
-int __pascal far add_midtable(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, byte blit, byte peel);
+int __pascal far add_backtable(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, int blit, byte peel);
+int __pascal far add_foretable(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, int blit, byte peel);
+int __pascal far add_midtable(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, int blit, byte peel);
 void __pascal far add_peel(int left,int right,int top,int height);
 void __pascal far add_wipetable(sbyte layer,short left,short bottom,sbyte height,short width,sbyte color);
 void __pascal far draw_table(int which_table);

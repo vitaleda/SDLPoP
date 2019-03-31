@@ -1,6 +1,6 @@
 /*
 SDLPoP, a port/conversion of the DOS game Prince of Persia.
-Copyright (C) 2013-2018  Dávid Nagy
+Copyright (C) 2013-2019  Dávid Nagy
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ typedef struct tile_and_mod {
 	byte modifier;
 } tile_and_mod;
 
-typedef int __pascal far (*add_table_type)(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, byte blit, byte peel);
+typedef int __pascal far (*add_table_type)(short chtab_id, int id, sbyte xh, sbyte xl, int ybottom, int blit, byte peel);
 
 typedef struct back_table_type {
 	sbyte xh;
@@ -95,7 +95,7 @@ typedef struct back_table_type {
 	short y;
 	byte chtab_id;
 	byte id;
-	byte blit;
+	int blit;
 } back_table_type;
 
 typedef struct midtable_type {
@@ -106,7 +106,7 @@ typedef struct midtable_type {
 	byte id;
 	byte peel;
 	rect_type clip;
-	byte blit;
+	int blit;
 } midtable_type;
 
 typedef struct wipetable_type {
@@ -177,7 +177,11 @@ enum blitters {
 	/* 0x40..0x4F will draw a monochrome image with color 0..15 */
 	blitters_40h_mono = 0x40,
 	blitters_46h_mono_6 = 0x46, // used for palace wall patterns
-	blitters_4Ch_mono_12 = 0x4C // used for chomper blood
+	blitters_4Ch_mono_12 = 0x4C, // used for chomper blood
+#ifdef USE_COLORED_TORCHES
+	blitters_colored_flame = 0x100,
+	blitters_colored_flame_last = 0x13F,
+#endif
 };
 
 enum grmodes {
@@ -1184,6 +1188,7 @@ typedef struct fixes_options_type {
 	byte fix_move_after_sheathe;
 	byte fix_hidden_floors_during_flashing;
 	byte fix_hang_on_teleport;
+	byte fix_exit_door;
 } fixes_options_type;
 
 typedef struct custom_options_type {

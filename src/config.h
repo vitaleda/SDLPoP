@@ -1,6 +1,6 @@
 /*
 SDLPoP, a port/conversion of the DOS game Prince of Persia.
-Copyright (C) 2013-2018  Dávid Nagy
+Copyright (C) 2013-2019  Dávid Nagy
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ The authors of this program may be contacted at http://forum.princed.org
 #define POP_MAX_PATH 256
 #define POP_MAX_OPTIONS_SIZE 256
 
-#define SDLPOP_VERSION "1.18.1"
+#define SDLPOP_VERSION "1.19"
 #define WINDOW_TITLE "Prince of Persia (SDLPoP) v" SDLPOP_VERSION
 
 // Enable or disable fading.
@@ -222,6 +222,8 @@ The authors of this program may be contacted at http://forum.princed.org
 
 // Display the in-game menu.
 #define USE_MENU
+
+#define USE_COLORED_TORCHES
 
 // Default SDL_Joystick button values
 #define SDL_JOYSTICK_BUTTON_Y 2
