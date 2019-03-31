@@ -27,6 +27,13 @@ The authors of this program may be contacted at http://forum.princed.org
 #include <wchar.h>
 #else
 #include "dirent.h"
+#ifdef __vita__
+#include <kbdvita.h>
+#include "dirent.h"
+#include "psp2_shader.h"
+#include <vita2d_fbo.h>
+vita2d_shader *shader = NULL;
+#endif
 #endif
 
 // Most functions in this file are different from those in the original game.
@@ -322,7 +329,13 @@ int __pascal far pop_wait(int timer_index,int time) {
 
 static FILE* open_dat_from_root_or_data_dir(const char* filename) {
 	FILE* fp = NULL;
+#ifdef __vita__
+	char vita_path[POP_MAX_PATH];
+	snprintf(vita_path, sizeof(vita_path), "ux0:data/prince/%s", filename);
+	fp = fopen(vita_path, "rb");
+#else
 	fp = fopen(filename, "rb");
+#endif
 
 	// if failed, try if the DAT file can be opened in the data/ directory, instead of the main folder
 	if (fp == NULL) {
@@ -796,7 +809,12 @@ int __pascal far set_joy_mode() {
 	if (SDL_NumJoysticks() < 1) {
 		is_joyst_mode = 0;
 	} else {
-		if (SDL_IsGameController(0)) {
+#ifdef __vita__
+		bool use_game_controller = false;
+#else
+		bool use_game_controller = SDL_IsGameController(0);
+#endif
+		if (use_game_controller) {
 			sdl_controller_ = SDL_GameControllerOpen(0);
 			if (sdl_controller_ == NULL) {
 				is_joyst_mode = 0;
@@ -1454,6 +1472,11 @@ void __pascal far draw_text_cursor(int xpos,int ypos,int color) {
 
 // seg009:053C
 int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length,const char *initial,int has_initial,int arg_4,int color,int bgcolor) {
+#ifdef __vita__
+	char *str = kbdvita_get("Enter your name", "", max_length);
+	strncpy(buffer, (str != NULL) ? str : "No name", max_length);
+	return strlen(buffer);
+#else
 	short length;
 	word key;
 	short cursor_visible;
@@ -1527,6 +1550,7 @@ int __pascal far input_str(const rect_type far *rect,char *buffer,int max_length
 			}
 		}
 	} while(1);
+#endif
 }
 
 #else // USE_TEXT
@@ -1946,7 +1970,11 @@ const int max_sound_id = 58;
 char** sound_names = NULL;
 
 void load_sound_names() {
+#ifdef __vita__
+	const char* names_path = locate_file("ux0:data/prince/data/music/names.txt");
+#else
 	const char* names_path = locate_file("data/music/names.txt");
+#endif
 	if (sound_names != NULL) return;
 	FILE* fp = fopen(names_path,"rt");
 	if (fp==NULL) return;
@@ -1992,11 +2020,19 @@ sound_buffer_type* load_sound(int index) {
 				char filename[POP_MAX_PATH];
 				if (!skip_mod_data_files) {
 					// before checking the root directory, first try mods/MODNAME/
+#ifdef __vita__
+					snprintf(filename, sizeof(filename), "ux0:data/prince/%s/music/%s.%s", mod_data_path, sound_name(index));
+#else
 					snprintf(filename, sizeof(filename), "%s/music/%s.ogg", mod_data_path, sound_name(index));
+#endif
 					fp = fopen(filename, "rb");
 				}
 				if (fp == NULL && !skip_normal_data_files) {
+#ifdef __vita__
+					snprintf(filename, sizeof(filename), "ux0:data/prince/data/music/%s.ogg", sound_name(index));
+#else
 					snprintf(filename, sizeof(filename), "data/music/%s.ogg", sound_name(index));
+#endif
 					fp = fopen(locate_file(filename), "rb");
 				}
 				if (fp == NULL) {
@@ -2227,6 +2263,7 @@ int __pascal far check_sound_playing() {
 }
 
 void apply_aspect_ratio() {
+#ifndef __vita__
 	// Allow us to use a consistent set of screen co-ordinates, even if the screen size changes
 	if (use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320 * 5, 200 * 6); // 4:3
@@ -2234,6 +2271,7 @@ void apply_aspect_ratio() {
 		SDL_RenderSetLogicalSize(renderer_, 320, 200); // 16:10
 	}
 	window_resized();
+#endif
 }
 
 void window_resized() {
@@ -2300,8 +2338,13 @@ void __pascal far set_gr_mode(byte grmode) {
 #ifdef SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING
 	SDL_SetHint(SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING, "1");
 #endif
+#ifdef __vita__
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
+				SDL_INIT_GAMECONTROLLER ) != 0) {
+#else
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE |
 	             SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC ) != 0) {
+#endif
 		sdlperror("SDL_Init");
 		quit(1);
 	}
@@ -2326,6 +2369,9 @@ void __pascal far set_gr_mode(byte grmode) {
 	                           pop_window_width, pop_window_height, flags);
 	// Make absolutely sure that VSync will be off, to prevent timer issues.
 	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+#ifdef __vita__
+	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED);
+#else
 	renderer_ = SDL_CreateRenderer(window_, -1 , SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
 	SDL_RendererInfo renderer_info;
 	if (SDL_GetRendererInfo(renderer_, &renderer_info) == 0) {
@@ -2333,6 +2379,7 @@ void __pascal far set_gr_mode(byte grmode) {
 			is_renderer_targettexture_supported = true;
 		}
 	}
+#endif
 	if (use_integer_scaling) {
 #if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
 		SDL_RenderSetIntegerScale(renderer_, SDL_TRUE);
@@ -2350,6 +2397,16 @@ void __pascal far set_gr_mode(byte grmode) {
 
 	apply_aspect_ratio();
 	window_resized();
+
+#ifdef __vita__
+	// For the sharp_bilinear_simple shader to work, linear filtering has to be enabled.
+	// This is done by a simple command here, supported by SDL2 for Vita since 2017/12/24.
+	// This affects all textures created after this command.
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+	//Enable sharp-bilinear-simple shader for sharp pixels without distortion.
+	//This has to be done after the SDL renderer is created because that inits vita2d.
+	shader = setPSP2Shader(SHARP_BILINEAR_SIMPLE);
+#endif
 
 	/* Migration to SDL2: everything is still blitted to onscreen_surface_, however:
 	 * SDL2 renders textures to the screen instead of surfaces; so, every screen
@@ -2459,7 +2516,23 @@ void update_screen() {
 		SDL_UpdateTexture(target_texture, NULL, surface->pixels, surface->pitch);
 	}
 	SDL_RenderClear(renderer_);
+#ifdef __vita__
+	int sh = 544;
+	int factW = use_correct_aspect_ratio ? 5 : 1;
+	int factH = use_correct_aspect_ratio ? 6 : 1;
+	int sw = start_fullscreen ? 960 : (float)320*factW*((float)sh/(float)(200*factH));
+	int x = (960 - sw)/2;
+
+	SDL_Rect src;
+	src.x = 0; src.y = 0; src.w = 320; src.h = 200;
+
+	SDL_Rect dst;
+	dst.x = x; dst.y = 0; dst.w = sw; dst.h = sh;
+
+	SDL_RenderCopy(renderer_, target_texture, &src, &dst);
+#else
 	SDL_RenderCopy(renderer_, target_texture, NULL, NULL);
+#endif
 	SDL_RenderPresent(renderer_);
 }
 
@@ -2558,7 +2631,11 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 			if (len >= 5 && filename_no_ext[len-4] == '.') {
 				filename_no_ext[len-4] = '\0'; // terminate, so ".DAT" is deleted from the filename
 			}
+#ifdef __vita__
+			snprintf(image_filename,sizeof(image_filename),"ux0:data/prince/data/%s/res%d.%s", filename_no_ext, resource_id, extension);
+#else
 			snprintf(image_filename,sizeof(image_filename),"data/%s/res%d.%s",filename_no_ext, resource_id, extension);
+#endif
 			if (!use_custom_levelset) {
 				//printf("loading (binary) %s",image_filename);
 				fp = fopen(locate_file(image_filename), "rb");
@@ -2567,7 +2644,12 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 				if (!skip_mod_data_files) {
 					char image_filename_mod[POP_MAX_PATH];
 					// before checking data/, first try mods/MODNAME/data/
+#ifdef __vita__
+					snprintf(image_filename_mod, sizeof(image_filename_mod), "ux0:data/prince/%s/%s", mod_data_path, image_filename);
+#else
 					snprintf(image_filename_mod, sizeof(image_filename_mod), "%s/%s", mod_data_path, image_filename);
+#endif
+
 					//printf("loading (binary) %s",image_filename_mod);
 					fp = fopen(locate_file(image_filename_mod), "rb");
 				}
@@ -3031,6 +3113,9 @@ void __pascal start_timer(int timer_index, int length) {
 }
 
 void toggle_fullscreen() {
+#ifdef __vita__
+	start_fullscreen = !start_fullscreen;
+#else
 	uint32_t flags = SDL_GetWindowFlags(window_);
 	if (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
 		SDL_SetWindowFullscreen(window_, 0);
@@ -3040,6 +3125,7 @@ void toggle_fullscreen() {
 		SDL_SetWindowFullscreen(window_, SDL_WINDOW_FULLSCREEN_DESKTOP);
 		SDL_ShowCursor(SDL_DISABLE);
 	}
+#endif
 }
 
 bool ignore_tab = false;
@@ -3216,7 +3302,37 @@ void process_events() {
 				}
 				break;
 			case SDL_JOYBUTTONDOWN:
+#ifdef __vita__
+				switch (event.jbutton.button)
+				{
+					case BTN_LEFT:     joy_hat_states[0] = -1; break;
+					case BTN_RIGHT:    joy_hat_states[0] = 1; break;
+					case BTN_UP:       joy_hat_states[1] = -1; break;
+					case BTN_DOWN:     joy_hat_states[1] = 1; break;
+					case BTN_CROSS:    if (!is_menu_shown) { joy_X_button_state = 1; last_key_scancode = 1; } else { last_key_scancode = SDL_SCANCODE_RETURN; } break;
+					case BTN_CIRCLE:   if (!is_menu_shown) { joy_hat_states[1] = -1; } else { last_key_scancode = SDL_SCANCODE_BACKSPACE; } break;
+					case BTN_TRIANGLE: is_show_time = 1; break;
+					case BTN_LTRIGGER: last_key_scancode = SDL_SCANCODE_F9; break;
+					case BTN_RTRIGGER: last_key_scancode = SDL_SCANCODE_F6; break;
+					case BTN_START:    last_key_scancode = SDL_SCANCODE_ESCAPE; break;
+					case BTN_SELECT:   toggle_fullscreen(); break;
+				}
+				break;
+#endif
 			case SDL_JOYBUTTONUP:
+#ifdef __vita__
+				switch (event.jbutton.button)
+				{
+					case BTN_LEFT:   joy_hat_states[0] = 0; break;
+					case BTN_RIGHT:  joy_hat_states[0] = 0; break;
+					case BTN_UP:     joy_hat_states[1] = 0; break;
+					case BTN_DOWN:   joy_hat_states[1] = 0; break;
+					case BTN_CROSS:  if (!is_menu_shown) { joy_X_button_state = 0; } break;
+					case BTN_CIRCLE: if (!is_menu_shown) { joy_hat_states[1] = 0; } break;
+				}
+				break;
+#endif
+#ifndef __vita__
 			case SDL_JOYAXISMOTION:
 				// Only handle the event if the joystick is incompatible with the SDL_GameController interface.
 				// (Otherwise it will interfere with the normal action of the SDL_GameController API.)
@@ -3252,6 +3368,7 @@ void process_events() {
 					else if (event.jbutton.button == SDL_JOYSTICK_BUTTON_X)   joy_X_button_state = 0;    // X (shift)
 				}
 				break;
+#endif
 
 			case SDL_TEXTINPUT:
 				last_text_input = event.text.text[0]; // UTF-8 formatted char text input
