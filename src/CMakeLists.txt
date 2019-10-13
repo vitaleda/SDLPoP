@@ -123,7 +123,7 @@ if(WIN32)
     target_link_libraries(prince mingw32 SDL2main SDL2 SDL2.dll SDL2_image)
 else()
     if(SWITCH_LIBNX)
-        target_link_libraries(prince SDL2main SDL2 SDL2_image EGL glapi drm_nouveau jpeg png z nx stdc++ m)
+        target_link_libraries(prince SDL2main SDL2 SDL2_image EGL glapi drm_nouveau jpeg png webp z nx stdc++ m)
     else()
         target_link_libraries(prince SDL2main SDL2 SDL2_image m)
     endif()
@@ -132,7 +132,7 @@ endif()
 if(SWITCH_LIBNX)
     add_custom_target(${CMAKE_PROJECT_NAME}.nro
         DEPENDS prince
-        COMMAND nacptool --create "${CMAKE_PROJECT_NAME}" "usineur" "1.2" ${CMAKE_PROJECT_NAME}.nacp
+        COMMAND nacptool --create "${CMAKE_PROJECT_NAME}" "usineur" "1.3" ${CMAKE_PROJECT_NAME}.nacp
         COMMAND elf2nro ${CMAKE_SOURCE_DIR}/../prince ${CMAKE_PROJECT_NAME}.nro --icon=${CMAKE_SOURCE_DIR}/../res/icon.jpg --nacp=${CMAKE_PROJECT_NAME}.nacp
     )
 
