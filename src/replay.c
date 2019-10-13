@@ -13,9 +13,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-The authors of this program may be contacted at http://forum.princed.org
+The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
@@ -431,6 +431,7 @@ void options_process_custom_general(SDL_RWops* rw, rw_process_func_type process_
 	process(custom->victory_stops_time_level);
 	process(custom->win_level);
 	process(custom->win_room);
+	process(custom->loose_floor_delay);
 }
 
 void options_process_custom_per_level(SDL_RWops* rw, rw_process_func_type process_func) {

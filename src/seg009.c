@@ -13,9 +13,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-The authors of this program may be contacted at http://forum.princed.org
+The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
@@ -2356,6 +2356,20 @@ void __pascal far set_gr_mode(byte grmode) {
 	if (use_correct_aspect_ratio && pop_window_width == 640 && pop_window_height == 400) {
 		pop_window_height = 480;
 	}
+
+#if _WIN32
+	// Tell Windows that the application is DPI aware, to prevent unwanted bitmap stretching.
+	// SetProcessDPIAware() is only available on Windows Vista and later, so we need to load it dynamically.
+	BOOL WINAPI (*SetProcessDPIAware)();
+	HMODULE user32dll = LoadLibraryA("User32.dll");
+	if (user32dll) {
+		SetProcessDPIAware = GetProcAddress(user32dll, "SetProcessDPIAware");
+		if (SetProcessDPIAware) {
+			SetProcessDPIAware();
+		}
+		FreeLibrary(user32dll);
+	}
+#endif
 
 #ifdef USE_REPLAY
 	if (!is_validate_mode) // run without a window if validating a replay

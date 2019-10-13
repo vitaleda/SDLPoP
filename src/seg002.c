@@ -13,9 +13,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-The authors of this program may be contacted at http://forum.princed.org
+The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
@@ -318,8 +318,10 @@ void __pascal far exit_room() {
 	if (Guard.direction == dir_56_none) return;
 	if (Guard.alive < 0 && Guard.sword == sword_2_drawn) {
 		kid_room_m1 = Kid.room - 1;
-		if (level.guards_tile[kid_room_m1] >= 30 ||
-			level.guards_seq_hi[kid_room_m1] != 0
+		// kid_room_m1 might be 65535 (-1) when the prince fell out of the level (to room 0) while a guard was active.
+		// In this case, the indexing in the following condition crashes on Linux.
+		if ((kid_room_m1 >= 0 && kid_room_m1 <= 23) &&
+			(level.guards_tile[kid_room_m1] >= 30 || level.guards_seq_hi[kid_room_m1] != 0)
 		) {
 			if (roomleave_result == 0) {
 				// left

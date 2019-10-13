@@ -13,9 +13,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-The authors of this program may be contacted at http://forum.princed.org
+The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
@@ -1430,7 +1430,8 @@ int __pascal far can_grab() {
 	// can't grab through floor
 	if (tile_is_floor(through_tile)) return 0;
 	// can't grab a shaking loose floor
-	if (curr_tile2 == tiles_11_loose && modifier != 0) return 0;
+	// Allow climbing onto a shaking loose floor if the delay is greater than the default. TODO: This should be a separate option.
+	if (curr_tile2 == tiles_11_loose && modifier != 0 && !(custom->loose_floor_delay > 11)) return 0;
 	// a doortop with floor can be grabbed only from the left (looking right)
 	if (curr_tile2 == tiles_7_doortop_with_floor && Char.direction < dir_0_right) return 0;
 	// can't grab something that has no floor
