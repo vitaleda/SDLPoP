@@ -3,12 +3,12 @@ For recent changes, look at GitHub: https://github.com/NagyD/SDLPoP/commits/mast
 
 2012 July 28
 ============
-Released disassembly of PoP1 DOS: http://forum.princed.org/viewtopic.php?p=11347#p11347
+Released disassembly of PoP1 DOS: https://forum.princed.org/viewtopic.php?p=11347#p11347
 
 2013 September 01
 =================
 I posted the room-drawing code (rewritten to C+SDL) in the forum.
-http://forum.princed.org/viewtopic.php?f=68&t=3368
+https://forum.princed.org/viewtopic.php?f=68&t=3368
 
 2013 December
 =============
@@ -16,7 +16,7 @@ Started rewriting the further parts of the disassembly to C.
 
 2014 January 03
 ===============
-Released disassembly: http://forum.princed.org/viewtopic.php?p=14291#p14291
+Released disassembly: https://forum.princed.org/viewtopic.php?p=14291#p14291
 
 2014 January
 ============
@@ -31,13 +31,13 @@ Made the code compatible with GNU/Linux.
 2014 July 11
 ============
 First public mention of the port.
-http://forum.princed.org/viewtopic.php?p=14975#p14975
+https://forum.princed.org/viewtopic.php?p=14975#p14975
 
 2014 July 21
 ============
 (version 1.00)
 The first public release.
-http://forum.princed.org/viewtopic.php?f=69&t=3512
+https://forum.princed.org/viewtopic.php?f=69&t=3512
 
 2014 July 22
 ============
@@ -524,3 +524,18 @@ FIXED: Made the exit door fix configurable.
 DONE: Added support for PC speaker sounds. Use command-line parameter "stdsnd".
 DONE: Added support for colored torch flames.
 FIXED: Torches appearing in the leftmost column are now animated. (They are actually in the rightmost column of the left-side room.)
+
+2019 October 13
+=================
+(version 1.20)
+
+FIXED: Fixed crash on Linux when the prince fell out of the level while a guard was active.
+FIXED: With start_in_blind_mode enabled, moving objects were not displayed until blind mode was toggled off+on.
+FIXED: Fix upside-down screen when using PRINCE.EXE from v1.3 or v1.4.
+FIXED: Tell Windows that SDLPoP is DPI aware to prevent unwanted stretching.
+DONE: Added customization option for loose floor delay. (Used in Neon Persia.)
+FIXED: Fix detection of "allow triggering any tile" hack.
+DONE: Enable use_custom_options by default in the INI.
+FIXED: Fix priorities of sword and spike sounds. (As in PoP 1.3.)
+	The "spiked" sound didn't interrupt the normal spikes sound when the prince ran into spikes.
+	With PoP 1.3 sounds, the "guard hurt" sound didn't play when you hit a guard directly after parrying.

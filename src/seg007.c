@@ -13,9 +13,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-The authors of this program may be contacted at http://forum.princed.org
+The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
@@ -458,7 +458,7 @@ Possible values of trob_type:
 					}
 				}
 			} else {
-				sound_interruptible[15] = 0;
+				sound_interruptible[sound_15_leveldoor_sliding] = 0;
 				play_sound(sound_15_leveldoor_sliding); // level door sliding (opening)
 			}
 		}
@@ -839,7 +839,7 @@ void __pascal far animate_loose() {
 		} else {
 			// something is on the floor
 			// should it fall already?
-			if (curr_modifier >= 11) {
+			if (curr_modifier >= /*11*/ custom->loose_floor_delay) {
 				curr_modifier = remove_loose(room = trob.room, tilepos = trob.tilepos);
 				trob.type = -1;
 				curmob.xh = (tilepos % 10) << 2;
